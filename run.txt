@@ -1,0 +1,33 @@
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2059
+xargstest.sh   2 3 93
+cat            2 4 23968
+echo           2 5 22800
+forktest       2 6 13176
+grep           2 7 27328
+init           2 8 23904
+kill           2 9 22768
+ln             2 10 22728
+ls             2 11 26208
+mkdir          2 12 22880
+rm             2 13 22864
+sh             2 14 41752
+stressfs       2 15 23872
+usertests      2 16 147512
+grind          2 17 37984
+wc             2 18 25112
+zombie         2 19 22272
+console        3 20 0
+$ echo abc.txt
+abc.txt
+$ QEMU: Terminated
+

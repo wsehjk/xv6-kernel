@@ -1,0 +1,44 @@
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -DSOL_UTIL -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -I. -fno-stack-protector -fno-pie -no-pie 
+LDFLAGS = -z max-page-size=4096 -N -e main -Ttext 0 
+OBJDUMP = riscv64-unknown-elf-objdump 
+GCC = riscv64-unknown-elf-gcc 
+LD = riscv64-unknown-elf-ld
+
+GCC     -c -o kernel/entry.o kernel/entry.S
+GCC  CFLAGS   -c -o kernel/start.o kernel/start.c
+GCC  CFLAGS   -c -o kernel/console.o kernel/console.c
+GCC  CFLAGS   -c -o kernel/printf.o kernel/printf.c
+GCC  CFLAGS   -c -o kernel/uart.o kernel/uart.c
+GCC  CFLAGS   -c -o kernel/kalloc.o kernel/kalloc.c
+GCC  CFLAGS   -c -o kernel/spinlock.o kernel/spinlock.c
+GCC  CFLAGS   -c -o kernel/string.o kernel/string.c
+GCC  CFLAGS   -c -o kernel/main.o kernel/main.c
+GCC  CFLAGS   -c -o kernel/vm.o kernel/vm.c
+GCC  CFLAGS   -c -o kernel/proc.o kernel/proc.c
+GCC     -c -o kernel/swtch.o kernel/swtch.S
+GCC     -c -o kernel/trampoline.o kernel/trampoline.S
+GCC  CFLAGS   -c -o kernel/trap.o kernel/trap.c
+GCC  CFLAGS   -c -o kernel/syscall.o kernel/syscall.c
+GCC  CFLAGS   -c -o kernel/sysproc.o kernel/sysproc.c
+GCC  CFLAGS   -c -o kernel/bio.o kernel/bio.c
+GCC  CFLAGS   -c -o kernel/fs.o kernel/fs.c
+GCC  CFLAGS   -c -o kernel/log.o kernel/log.c
+GCC  CFLAGS   -c -o kernel/sleeplock.o kernel/sleeplock.c
+GCC  CFLAGS   -c -o kernel/file.o kernel/file.c
+GCC  CFLAGS   -c -o kernel/pipe.o kernel/pipe.c
+GCC  CFLAGS   -c -o kernel/exec.o kernel/exec.c
+GCC  CFLAGS   -c -o kernel/sysfile.o kernel/sysfile.c
+GCC     -c -o kernel/kernelvec.o kernel/kernelvec.S
+GCC  CFLAGS   -c -o kernel/plic.o kernel/plic.c
+GCC  CFLAGS   -c -o kernel/virtio_disk.o kernel/virtio_disk.c
+# make kernel/*.o file
+GCC  CFLAGS -march=rv64g -nostdinc -I. -Ikernel -c user/initcode.S -o user/initcode.o
+LD  -z max-page-size=4096 -N -e start -Ttext 0 -o user/initcode.out user/initcode.o
+riscv64-unknown-elf-objcopy -S -O binary user/initcode.out user/initcode
+OBJDUMP  -S user/initcode.o > user/initcode.asm
+# make user/initcode
+LD  -z max-page-size=4096 -T kernel/kernel.ld -o kernel/kernel kernel/entry.o kernel/start.o kernel/console.o kernel/printf.o kernel/uart.o kernel/kalloc.o kernel/spinlock.o kernel/string.o kernel/main.o kernel/vm.o kernel/proc.o kernel/swtch.o kernel/trampoline.o kernel/trap.o kernel/syscall.o kernel/sysproc.o kernel/bio.o kernel/fs.o kernel/log.o kernel/sleeplock.o kernel/file.o kernel/pipe.o kernel/exec.o kernel/sysfile.o kernel/kernelvec.o kernel/plic.o kernel/virtio_disk.o  
+# link kernel/kernel file 
+LD : warning: cannot find entry symbol _entry; defaulting to 0000000080000000
+OBJDUMP  -S kernel/kernel > kernel/kernel.asm
+OBJDUMP  -t kernel/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > kernel/kernel.sym

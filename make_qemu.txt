@@ -1,0 +1,108 @@
+CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb -DSOL_UTIL -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -I. -fno-stack-protector -fno-pie -no-pie
+LDFLAGS = -z max-page-size=4096 -N -e main -Ttext 0 
+OBJDUMP = riscv64-unknown-elf-objdump 
+GCC = riscv64-unknown-elf-gcc 
+LD = riscv64-unknown-elf-ld 
+gcc -Werror -Wall -I. -o mkfs/mkfs mkfs/mkfs.c
+GCC CFLAGS  -c -o user/ulib.o user/ulib.c
+perl user/usys.pl > user/usys.S
+
+GCC CFLAGS -c -o user/usys.o user/usys.S
+GCC CFLAGS  -c -o user/printf.o user/printf.c
+GCC CFLAGS  -c -o user/umalloc.o user/umalloc.c
+
+GCC CFLAGS  -c -o user/cat.o user/cat.c
+LD LDFLAGS -o user/_cat user/cat.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_cat > user/cat.asm
+OBJDUMP -t user/_cat | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/cat.sym
+
+GCC CFLAGS  -c -o user/echo.o user/echo.c
+LD LDFLAGS -o user/_echo user/echo.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_echo > user/echo.asm
+OBJDUMP -t user/_echo | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/echo.sym
+
+GCC CFLAGS  -c -o user/forktest.o user/forktest.c
+# forktest has less library code linked in - needs to be small
+# in order to be able to max out the proc table.
+LD LDFLAGS -o user/_forktest user/forktest.o user/ulib.o user/usys.o
+OBJDUMP -S user/_forktest > user/forktest.asm
+
+GCC CFLAGS  -c -o user/grep.o user/grep.c
+LD LDFLAGS -o user/_grep user/grep.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_grep > user/grep.asm
+OBJDUMP -t user/_grep | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/grep.sym
+
+GCC CFLAGS  -c -o user/init.o user/init.c
+LD LDFLAGS -o user/_init user/init.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_init > user/init.asm
+OBJDUMP -t user/_init | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/init.sym
+
+GCC CFLAGS  -c -o user/kill.o user/kill.c
+LD LDFLAGS -o user/_kill user/kill.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_kill > user/kill.asm
+OBJDUMP -t user/_kill | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/kill.sym
+
+GCC CFLAGS  -c -o user/ln.o user/ln.c
+LD LDFLAGS -o user/_ln user/ln.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_ln > user/ln.asm
+OBJDUMP -t user/_ln | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/ln.sym
+
+GCC CFLAGS  -c -o user/ls.o user/ls.c
+LD LDFLAGS -o user/_ls user/ls.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_ls > user/ls.asm
+OBJDUMP -t user/_ls | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/ls.sym
+
+GCC CFLAGS  -c -o user/mkdir.o user/mkdir.c
+LD LDFLAGS -o user/_mkdir user/mkdir.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_mkdir > user/mkdir.asm
+OBJDUMP -t user/_mkdir | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/mkdir.sym
+
+GCC CFLAGS  -c -o user/rm.o user/rm.c
+LD LDFLAGS -o user/_rm user/rm.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_rm > user/rm.asm
+OBJDUMP -t user/_rm | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/rm.sym
+
+GCC CFLAGS  -c -o user/sh.o user/sh.c
+LD LDFLAGS -o user/_sh user/sh.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_sh > user/sh.asm
+OBJDUMP -t user/_sh | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/sh.sym
+
+GCC CFLAGS  -c -o user/stressfs.o user/stressfs.c
+LD LDFLAGS -o user/_stressfs user/stressfs.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_stressfs > user/stressfs.asm
+OBJDUMP -t user/_stressfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/stressfs.sym
+
+GCC CFLAGS  -c -o user/usertests.o user/usertests.c
+LD LDFLAGS -o user/_usertests user/usertests.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_usertests > user/usertests.asm
+OBJDUMP -t user/_usertests | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/usertests.sym
+
+GCC CFLAGS  -c -o user/grind.o user/grind.c
+LD LDFLAGS -o user/_grind user/grind.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_grind > user/grind.asm
+OBJDUMP -t user/_grind | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/grind.sym
+
+GCC CFLAGS  -c -o user/wc.o user/wc.c
+LD LDFLAGS -o user/_wc user/wc.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_wc > user/wc.asm
+OBJDUMP -t user/_wc | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/wc.sym
+
+GCC CFLAGS  -c -o user/zombie.o user/zombie.c
+LD LDFLAGS -o user/_zombie user/zombie.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
+OBJDUMP -S user/_zombie > user/zombie.asm
+OBJDUMP -t user/_zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/zombie.sym
+
+mkfs/mkfs fs.img README  user/xargstest.sh user/_cat user/_echo user/_forktest user/_grep user/_init user/_kill user/_ln user/_ls user/_mkdir user/_rm user/_sh user/_stressfs user/_usertests user/_grind user/_wc user/_zombie 
+
+nmeta 46 (boot, super, log blocks 30 inode blocks 13, bitmap blocks 1) blocks 954 total 1000
+balloc: first 591 blocks have been allocated
+balloc: write bitmap block at sector 45
+qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ QEMU: Terminated
+
