@@ -149,7 +149,15 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
-
+	$U/_copy\
+	$U/_fork_write\
+	$U/_fork_exec\
+	$U/_sleep\
+	$U/_open_files\
+	$U/_pingpong\
+	$U/_primes\
+	$U/_find\
+	$U/_xargs\
 
 ifeq ($(LAB),syscall)
 UPROGS += \
