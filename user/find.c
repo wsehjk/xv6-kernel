@@ -26,7 +26,7 @@ void find(const char* path, const char* pattern) {
     if (fstat(fd, &st) < 0) {
         fprintf(2, "cannot fstat file %s\n", path);
         close(fd);
-        return ;
+        return;
     }
     if (st.type == T_FILE || st.type == T_DEVICE) {
         if (strcmp(fileName(path), pattern) == 0) {
@@ -34,6 +34,10 @@ void find(const char* path, const char* pattern) {
         }
     }
     else if (st.type == T_DIR) { // recursion, donot recure into . and ..
+        if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buf)) {
+            fprintf(2, "find: path too long\n");
+            return;
+        }
         strcpy(buf, path);
         p = buf + strlen(path);
         *p++ = '/';

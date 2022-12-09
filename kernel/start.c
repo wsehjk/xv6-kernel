@@ -4,6 +4,8 @@
 #include "riscv.h"
 #include "defs.h"
 
+void seive();
+
 void main();
 void timerinit();
 
