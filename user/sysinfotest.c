@@ -18,8 +18,8 @@ sinfo(struct sysinfo *info) {
 int
 countfree()
 {
-  uint64 sz0 = (uint64)sbrk(0);
-  struct sysinfo info;
+  uint64 sz0 = (uint64)sbrk(0); // 得到当前地址
+  struct sysinfo info;  // 
   int n = 0;
 
   while(1){
@@ -27,15 +27,15 @@ countfree()
       break;
     }
     n += PGSIZE;
-  }
+  }  // 一直申请内存，知道没有内存分配 ，n = freemem
   sinfo(&info);
   if (info.freemem != 0) {
     printf("FAIL: there is no free mem, but sysinfo.freemem=%d\n",
       info.freemem);
     exit(1);
   }
-  sbrk(-((uint64)sbrk(0) - sz0));
-  return n;
+  sbrk(-((uint64)sbrk(0) - sz0));  // 释放之前申请的全部内存
+  return n;  // 返回可用内存
 }
 
 void

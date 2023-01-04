@@ -18,11 +18,11 @@ struct run {
   struct run *next;
 };
 
-struct {
+struct kmem{
   struct spinlock lock;
   struct run *freelist;
 } kmem;
-
+// 用链表组织物理内存里的空闲区
 void
 kinit()
 {
@@ -79,4 +79,19 @@ kalloc(void)
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+
+uint64 freememNum() {
+  uint64 num = 0;
+  struct run* r;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  while (r) {
+    num ++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  //printf("nums is %d\n", (int)num);
+  return num * (uint64)PGSIZE;
 }

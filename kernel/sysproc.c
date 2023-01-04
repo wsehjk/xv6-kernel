@@ -95,3 +95,30 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+uint64
+sys_trace(void) {
+  int tracenum;
+  if (argint(0, &tracenum) < 0)
+    return -1;
+  struct proc *p = myproc();
+  p->tracenum = tracenum;
+  return 0;
+}
+
+uint64 sys_sysinfo(void) {
+  uint64 addr = 0;
+  if (argaddr(0, &addr) < 0) {
+    return -1;
+  } 
+  struct info {
+    uint64 freemem;
+    uint64 nproc;
+  };
+  struct info in;
+  in.nproc = getprocessnum();
+  in.freemem = freememNum();
+  // copyin and copyout check the legality
+  struct proc* p = myproc();
+   
+  return copyout(p->pagetable, addr, (char*)&in, sizeof(in)); 
+}

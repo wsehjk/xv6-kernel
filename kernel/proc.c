@@ -275,6 +275,8 @@ fork(void)
   }
   np->sz = p->sz;
 
+  np->tracenum = p->tracenum;
+
   np->parent = p;
 
   // copy saved user registers.
@@ -488,6 +490,20 @@ scheduler(void)
       asm volatile("wfi");
     }
   }
+}
+
+// sysinfo use this function to 
+// get the number of process whose state is not UNUSED.
+uint64 getprocessnum() {
+  struct  proc* p;
+  uint64 num = 0;
+  for (p = proc; p < &proc[NPROC]; ++p) {
+    acquire(&p->lock);
+    if (p->state != UNUSED) 
+      num ++;
+    release(&p->lock); 
+  } 
+  return num;
 }
 
 // Switch to scheduler.  Must hold only p->lock
