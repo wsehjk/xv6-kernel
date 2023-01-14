@@ -20,15 +20,17 @@
 // qemu puts UART registers here in physical memory.
 #define UART0 0x10000000L
 #define UART0_IRQ 10
+#define UART0_SIZE PGSIZE
 
 // virtio mmio interface
 #define VIRTIO0 0x10001000
 #define VIRTIO0_IRQ 1
-
+#define VIRTIO0_SIZE PGSIZE
 // local interrupt controller, which contains the timer.
 #define CLINT 0x2000000L
 #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
+#define CLINT_SIZE 0x10000
 
 // qemu puts programmable interrupt controller here.
 #define PLIC 0x0c000000L
@@ -40,6 +42,7 @@
 #define PLIC_SPRIORITY(hart) (PLIC + 0x201000 + (hart)*0x2000)
 #define PLIC_MCLAIM(hart) (PLIC + 0x200004 + (hart)*0x2000)
 #define PLIC_SCLAIM(hart) (PLIC + 0x201004 + (hart)*0x2000)
+#define PLIC_SIZE 0x400000
 
 // the kernel expects there to be RAM
 // for use by the kernel and user pages
@@ -50,7 +53,7 @@
 // map the trampoline page to the highest address,
 // in both user and kernel space.
 #define TRAMPOLINE (MAXVA - PGSIZE)
-
+#define TRAMPOLINE_SIZE PGSIZE
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.
 #define KSTACK(p) (TRAMPOLINE - ((p)+1)* 2*PGSIZE)

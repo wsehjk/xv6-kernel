@@ -11,7 +11,7 @@ struct cpu cpus[NCPU];
 struct proc proc[NPROC];
 
 struct proc *initproc;
-
+extern pagetable_t kernel_pagetable;
 int nextpid = 1;
 struct spinlock pid_lock;
 
@@ -123,6 +123,21 @@ found:
     release(&p->lock);
     return 0;
   }
+
+  p->kernel_pagetable = proc_kvminit(); // 进程的内核页表 
+  if(p->kernel_pagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+  }
+
+  // 每个进程的内核栈
+  pte_t* pte = walk(kernel_pagetable, p->kstack, 0);
+  if (pte == 0) {
+    return 0;
+  }
+  
+  uint64 pa = PTE2PA(*pte);
+  mappages(p->kernel_pagetable, p->kstack, PGSIZE, (uint64)pa, PTE_R|PTE_W);
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -483,6 +498,10 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+
+        w_satp(MAKE_SATP(p->kernel_pagetable));
+        sfence_vma();
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -496,6 +515,7 @@ scheduler(void)
 #if !defined (LAB_FS)
     if(found == 0) {
       intr_on();
+      kvminithart();
       asm volatile("wfi");
     }
 #else
