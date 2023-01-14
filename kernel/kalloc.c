@@ -57,7 +57,7 @@ kfree(void *pa)
   r = (struct run*)pa;
 
   acquire(&kmem.lock);
-  r->next = kmem.freelist;
+  r->next = kmem.freelist;  // 空闲的页放入队列头部
   kmem.freelist = r;
   release(&kmem.lock);
 }
@@ -73,10 +73,10 @@ kalloc(void)
   acquire(&kmem.lock);
   r = kmem.freelist;
   if(r)
-    kmem.freelist = r->next;
+    kmem.freelist = r->next;  // kmem.freelist指向下一空闲页
   release(&kmem.lock);
 
-  if(r)
+  if(r)  // 填入垃圾值，覆盖r->next
     memset((char*)r, 5, PGSIZE); // fill with junk
-  return (void*)r;
+  return (void*)r;  // 返回分配的页地址
 }

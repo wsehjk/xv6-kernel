@@ -23,10 +23,10 @@ uservec:
         # sscratch points to where the process's p->trapframe is
         # mapped into user space, at TRAPFRAME.
         #
-        
-	# swap a0 and sscratch
+// 执行ecall指令之后，跳转到这里，保存寄存器信息，保存在trapframe里 p->trapframe 
+	# swap a0 and sscratch  // sscratch值为(0x3fffffe000)
         # so that a0 is TRAPFRAME
-        csrrw a0, sscratch, a0
+        csrrw a0, sscratch, a0  // sscratch 0x3fffffe000
 
         # save the user registers in TRAPFRAME
         sd ra, 40(a0)
@@ -71,7 +71,7 @@ uservec:
         ld tp, 32(a0)
 
         # load the address of usertrap(), p->trapframe->kernel_trap
-        ld t0, 16(a0)
+        ld t0, 16(a0)   // 查看trapframe 结构得知
 
         # restore kernel page table from p->trapframe->kernel_satp
         ld t1, 0(a0)

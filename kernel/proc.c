@@ -28,20 +28,21 @@ procinit(void)
   struct proc *p;
   
   initlock(&pid_lock, "nextpid");
-  for(p = proc; p < &proc[NPROC]; p++) {
+  for(p = proc; p < &proc[NPROC]; p++) {  // 为每个进程分配内核栈
       initlock(&p->lock, "proc");
 
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();
+      char *pa = kalloc();  // 先分配物理内存
       if(pa == 0)
         panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      uint64 va = KSTACK((int) (p - proc)); //  *2*PGASIZE 中间留下了一页的guard page
+      // #define KSTACK(p) (TRAMPOLINE - ((p)+1)* 2*PGSIZE)
+      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);   // 起始地址
+      p->kstack = va; // 保存进程的内核栈虚拟地址
   }
-  kvminithart();
+  kvminithart();  // 
 }
 
 // Must be called with interrupts disabled,
@@ -50,7 +51,7 @@ procinit(void)
 int
 cpuid()
 {
-  int id = r_tp();
+  int id = r_tp();  // tp 寄存器 thread pointer 
   return id;
 }
 
@@ -58,7 +59,7 @@ cpuid()
 // Interrupts must be disabled.
 struct cpu*
 mycpu(void) {
-  int id = cpuid();
+  int id = cpuid();  
   struct cpu *c = &cpus[id];
   return c;
 }
@@ -78,8 +79,8 @@ allocpid() {
   int pid;
   
   acquire(&pid_lock);
-  pid = nextpid;
-  nextpid = nextpid + 1;
+  pid = nextpid;  // 第一个进程pid为1
+  nextpid = nextpid + 1;  // pid以及增加
   release(&pid_lock);
 
   return pid;
@@ -103,18 +104,20 @@ allocproc(void)
     }
   }
   return 0;
-
+//找到进程表中，处于unused状态的进程
 found:
-  p->pid = allocpid();
+  p->pid = allocpid();  //分配一个pid, 初始为1
 
-  // Allocate a trapframe page.
-  if((p->trapframe = (struct trapframe *)kalloc()) == 0){
+  // Allocate a trapframe page.  //分配一个物理页 存储trapframe；
+  // va（trampoline - PGSIZE ）映射到这里
+  if((p->trapframe = (struct trapframe *)kalloc()) == 0){ // 物理地址
     release(&p->lock);
     return 0;
   }
 
   // An empty user page table.
-  p->pagetable = proc_pagetable(p);
+  // 设置页表，并且映射trampoline和trapframe页
+  p->pagetable = proc_pagetable(p);  // line 169/proc.c
   if(p->pagetable == 0){
     freeproc(p);
     release(&p->lock);
@@ -123,8 +126,8 @@ found:
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
-  memset(&p->context, 0, sizeof(p->context));
-  p->context.ra = (uint64)forkret;
+  memset(&p->context, 0, sizeof(p->context));  
+  p->context.ra = (uint64)forkret;  // line 543 proc.c
   p->context.sp = p->kstack + PGSIZE;
 
   return p;
@@ -137,7 +140,7 @@ static void
 freeproc(struct proc *p)
 {
   if(p->trapframe)
-    kfree((void*)p->trapframe);
+    kfree((void*)p->trapframe);  // 回收
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -160,25 +163,32 @@ proc_pagetable(struct proc *p)
   pagetable_t pagetable;
 
   // An empty page table.
-  pagetable = uvmcreate();
-  if(pagetable == 0)
+  // 调用kalloc函数 从kmem.freelist中获取空白物理页
+  pagetable = uvmcreate();   // vm.c kalloc && memset(,0,PGSIZE)  206/vm.c
+  if(pagetable == 0)   // 没有内存可以分配
     return 0;
 
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
   // to/from user space, so not PTE_U.
+  // #define TRAMPOLINE (MAXVA - PGSIZE) 将 TRAMPOLINE(0x3ffffff000)
+  // 映射到 trampoline(0x80007000)
+  // 同样的内核映射见 kvminit()  line 11/vm.c
   if(mappages(pagetable, TRAMPOLINE, PGSIZE,
               (uint64)trampoline, PTE_R | PTE_X) < 0){
-    uvmfree(pagetable, 0);
+    uvmfree(pagetable, 0);  // user space 大小为0
     return 0;
   }
 
   // map the trapframe just below TRAMPOLINE, for trampoline.S.
+  // #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+  // 将trapframe 映射到 p->trapframe
+  // 0x3fffffe000
   if(mappages(pagetable, TRAPFRAME, PGSIZE,
               (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-    uvmfree(pagetable, 0);
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);  //trapframe页分配失败，删除trampoline的pte； 
+    uvmfree(pagetable, 0);//freewalk()删除页表                        // trampoline为共享页
     return 0;
   }
 
@@ -190,9 +200,9 @@ proc_pagetable(struct proc *p)
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
-  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-  uvmunmap(pagetable, TRAPFRAME, 1, 0);
-  uvmfree(pagetable, sz);
+  uvmunmap(pagetable, TRAMPOLINE, 1, 0); // 删除页表项，但不释放内存，因为TRAMPOLINE为所有进程已经内核共用 
+  uvmunmap(pagetable, TRAPFRAME, 1, 0);  // trapframe 已经被freeproc()回收了
+  uvmfree(pagetable, sz);  // 通过页表找到物理地址，回收内存(sz>0)并且回收页表占用的内存 
 }
 
 // a user program that calls exec("/init")
@@ -213,7 +223,7 @@ userinit(void)
 {
   struct proc *p;
 
-  p = allocproc();
+  p = allocproc();  // p->trapframe, p->pagetable line94/proc.c 
   initproc = p;
   
   // allocate one user page and copy init's instructions
@@ -462,7 +472,7 @@ scheduler(void)
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
-    intr_on();
+    intr_on();  // 开启中断
     
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {

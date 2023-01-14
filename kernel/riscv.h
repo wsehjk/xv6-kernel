@@ -324,7 +324,11 @@ sfence_vma()
 #define PGSHIFT 12  // bits of offset within a page
 
 #define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
-#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
+// 如果sz的低12位为0， PGROUNDUP(sz)结果为sz
+// 否则 sz+PGSIZE-1 使sz中的vpn加1；结果为下一虚拟页的初始地址
+
+#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))  
+// PGSIZE-1 低12位为1，高位为0；取反之后低12位为0，高位为1；这样可以把a的低12位置为0，保留高位
 
 #define PTE_V (1L << 0) // valid
 #define PTE_R (1L << 1)
@@ -337,7 +341,7 @@ sfence_vma()
 
 #define PTE2PA(pte) (((pte) >> 10) << 12)
 
-#define PTE_FLAGS(pte) ((pte) & 0x3FF)
+#define PTE_FLAGS(pte) ((pte) & 0x3FF)  // 0x3ff 10个1
 
 // extract the three 9-bit page table indices from a virtual address.
 #define PXMASK          0x1FF // 9 bits
@@ -348,7 +352,8 @@ sfence_vma()
 // MAXVA is actually one bit less than the max allowed by
 // Sv39, to avoid having to sign-extend virtual addresses
 // that have the high bit set.
-#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1)) // 
 
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
+typedef uint64 pde_t;

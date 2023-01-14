@@ -48,6 +48,8 @@ usertrap(void)
   struct proc *p = myproc();
   
   // save user program counter.
+  // asm volatile("csrr %0, sepc" : "=r" (x) );
+  // ecall把ecall指令地址存到sepc寄存区
   p->trapframe->epc = r_sepc();
   
   if(r_scause() == 8){
@@ -58,7 +60,8 @@ usertrap(void)
 
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
+    // 指向ecall的一条指令
+    p->trapframe->epc += 4; 
 
     // an interrupt will change sstatus &c registers,
     // so don't enable until done with those registers.
@@ -97,7 +100,7 @@ usertrapret(void)
   intr_off();
 
   // send syscalls, interrupts, and exceptions to trampoline.S
-  w_stvec(TRAMPOLINE + (uservec - trampoline));
+  w_stvec(TRAMPOLINE + (uservec - trampoline));  // 设置 stvec   trampoline&uservec 0x80007000 
 
   // set up trapframe values that uservec will need when
   // the process next re-enters the kernel.
@@ -124,7 +127,7 @@ usertrapret(void)
   // jump to trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
-  uint64 fn = TRAMPOLINE + (userret - trampoline);
+  uint64 fn = TRAMPOLINE + (userret - trampoline); // 0x3ffffff090 
   ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
 }
 
