@@ -51,7 +51,7 @@ kvminit()
 //  vmprint(kernel_pagetable);
 }
 
-
+// create a kernel pagetable for process 
 pagetable_t proc_kvminit() {
   pagetable_t pagetable;
   if ((pagetable = uvmcreate()) == 0) {
@@ -59,49 +59,71 @@ pagetable_t proc_kvminit() {
   }
 
   if(mappages(pagetable, CLINT, CLINT_SIZE, CLINT, PTE_W|PTE_R) < 0){
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmfree(pagetable, 0);
     return 0;
   }
 
   // PLIC
   if(mappages(pagetable, PLIC, PLIC_SIZE, PLIC, PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmfree(pagetable, 0);
     return 0;
   }
 
   // uart registers
   if(mappages(pagetable, UART0, UART0_SIZE, UART0, PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+    uvmfree(pagetable, 0);
     return 0;
   }
 
   // virtio mmio disk interface
   if(mappages(pagetable, VIRTIO0, VIRTIO0_SIZE, VIRTIO0, PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0)/PGSIZE, 0); 
+    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
+    uvmfree(pagetable, 0);
     return 0;
   } 
   // 将VIRTIO0开始的大小为PGSIZE的虚拟内存映射到VIRTIO0开始的连续物理内存
 
   // map kernel text executable and read-only.
   if(mappages(pagetable, KERNBASE, (uint64)etext-KERNBASE, KERNBASE, PTE_R | PTE_X) < 0) {
-    uvmunmap(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE, 0); 
+    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0);
+    uvmfree(pagetable, 0);
     return 0;
   } 
 
   // map kernel data and the physical RAM we'll make use of.
   if(mappages(pagetable, (uint64)etext, PHYSTOP-(uint64)etext, (uint64)etext, PTE_R | PTE_W) < 0) {
-    uvmunmap(pagetable, (uint64)etext, PGROUNDUP(PHYSTOP-(uint64)etext)/PGSIZE, 0); 
+    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE, 0); 
+    uvmfree(pagetable, 0);
     return 0;
   }
 
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   if(mappages(pagetable, TRAMPOLINE, TRAMPOLINE_SIZE, (uint64)trampoline, PTE_R | PTE_X) < 0) {
-    uvmunmap(pagetable, TRAMPOLINE, PGROUNDUP(TRAMPOLINE_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0); 
+    uvmunmap(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE, 0); 
+    uvmunmap(pagetable, (uint64)etext, PGROUNDUP(PHYSTOP-(uint64)etext)/PGSIZE, 0); 
+    uvmfree(pagetable, 0);
     return 0;
   } 
   return pagetable;
 }
+
 // Switch h/w page table register to the kernel's page table,
 // and enable paging.
 void
@@ -160,7 +182,7 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
   if((*pte & PTE_V) == 0)
     return 0;
-  if((*pte & PTE_U) == 0)
+  if((*pte & PTE_U) == 0)  // user pages PTE_V flag set 
     return 0;
   pa = PTE2PA(*pte);
   return pa;
@@ -238,9 +260,10 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0) // 查找a对应pte,
-      panic("uvmunmap: walk"); // 如果查找的level2或者level1 pte为invalid
-    if((*pte & PTE_V) == 0)  // level0 pte 为invalid
-      panic("uvmunmap: not mapped");
+      panic("uvmunmap: walk");  
+    if((*pte & PTE_V) == 0) {  
+       panic("uvmunmap: not mapped");
+    } // level0 pte 为invalid
     if(PTE_FLAGS(*pte) == PTE_V)   // level2 和level1的标志只设为pte_v
       panic("uvmunmap: not a leaf");  // walk()+13
     if(do_free){   // 回收内存

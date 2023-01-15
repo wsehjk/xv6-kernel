@@ -20,6 +20,7 @@ static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
+extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 // initialize the proc table at boot time.
 void
@@ -135,7 +136,7 @@ found:
   if (pte == 0) {
     return 0;
   }
-  
+
   uint64 pa = PTE2PA(*pte);
   mappages(p->kernel_pagetable, p->kstack, PGSIZE, (uint64)pa, PTE_R|PTE_W);
 
@@ -159,7 +160,12 @@ freeproc(struct proc *p)
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  if(p->kernel_pagetable) {
+    uvmunmap(p->kernel_pagetable, p->kstack, 1, 0); // 释放内核栈
+    proc_freekernelpagetable(p->kernel_pagetable, p->sz); // 释放trampoline, CLINT, PLIC等相关PTE
+  }
   p->pagetable = 0;
+  p->kernel_pagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -220,6 +226,18 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmfree(pagetable, sz);  // 通过页表找到物理地址，回收内存(sz>0)并且回收页表占用的内存 
 }
 
+// free a process's kernel page tabel 
+void proc_freekernelpagetable(pagetable_t pagetable, uint64 sz){
+  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
+  uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
+  uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0); 
+  uvmunmap(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE, 0); 
+  uvmunmap(pagetable, (uint64)etext, PGROUNDUP(PHYSTOP-(uint64)etext)/PGSIZE, 0); 
+  uvmunmap(pagetable, TRAMPOLINE, PGROUNDUP(TRAMPOLINE_SIZE)/PGSIZE, 0);
+  uvmfree(pagetable, 0);   // 只调用free walk函数，  
+}
+
 // a user program that calls exec("/init")
 // od -t xC initcode
 uchar initcode[] = {
@@ -265,12 +283,13 @@ growproc(int n)
 {
   uint sz;
   struct proc *p = myproc();
-
+  // 映射进程的内核页表
   sz = p->sz;
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
