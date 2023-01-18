@@ -228,7 +228,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 
 // free a process's kernel page tabel 
 void proc_freekernelpagetable(pagetable_t pagetable, uint64 sz){
-  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
   uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
   uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
   uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0); 

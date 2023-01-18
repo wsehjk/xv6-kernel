@@ -58,21 +58,21 @@ pagetable_t proc_kvminit() {
     return 0;
   }
 
-  if(mappages(pagetable, CLINT, CLINT_SIZE, CLINT, PTE_W|PTE_R) < 0){
-    uvmfree(pagetable, 0);
-    return 0;
-  }
+  //if(mappages(pagetable, CLINT, CLINT_SIZE, CLINT, PTE_W|PTE_R) < 0){
+  //  uvmfree(pagetable, 0);
+  //  return 0;
+  //}
 
   // PLIC
   if(mappages(pagetable, PLIC, PLIC_SIZE, PLIC, PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
     uvmfree(pagetable, 0);
     return 0;
   }
 
   // uart registers
   if(mappages(pagetable, UART0, UART0_SIZE, UART0, PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
     uvmfree(pagetable, 0);
     return 0;
@@ -80,7 +80,7 @@ pagetable_t proc_kvminit() {
 
   // virtio mmio disk interface
   if(mappages(pagetable, VIRTIO0, VIRTIO0_SIZE, VIRTIO0, PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
     uvmfree(pagetable, 0);
@@ -90,7 +90,7 @@ pagetable_t proc_kvminit() {
 
   // map kernel text executable and read-only.
   if(mappages(pagetable, KERNBASE, (uint64)etext-KERNBASE, KERNBASE, PTE_R | PTE_X) < 0) {
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0);
@@ -100,7 +100,7 @@ pagetable_t proc_kvminit() {
 
   // map kernel data and the physical RAM we'll make use of.
   if(mappages(pagetable, (uint64)etext, PHYSTOP-(uint64)etext, (uint64)etext, PTE_R | PTE_W) < 0) {
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0); 
@@ -112,7 +112,7 @@ pagetable_t proc_kvminit() {
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   if(mappages(pagetable, TRAMPOLINE, TRAMPOLINE_SIZE, (uint64)trampoline, PTE_R | PTE_X) < 0) {
-    uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
+  //  uvmunmap(pagetable, CLINT, PGROUNDUP(CLINT_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, PLIC, PGROUNDUP(PLIC_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, UART0, PGROUNDUP(UART0_SIZE)/PGSIZE, 0); 
     uvmunmap(pagetable, VIRTIO0, PGROUNDUP(VIRTIO0_SIZE)/PGSIZE, 0); 
@@ -496,6 +496,7 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
     srcva = va0 + PGSIZE;
   }
   return 0;
+  //return copyin_new(pagetable, dst, srcva, len);
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -539,4 +540,5 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+  //return copyin_new(pagetable, dst, srcva, len);
 }

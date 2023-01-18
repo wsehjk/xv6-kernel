@@ -39,8 +39,9 @@ exec(char *path, char **argv)
     goto bad;
 
   // Load program into memory.
+  // in xv6 elf.phnum is 1
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
-    if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
+    if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph)) //读入一个prog header 
       goto bad;
     if(ph.type != ELF_PROG_LOAD)
       continue;
@@ -48,7 +49,7 @@ exec(char *path, char **argv)
       goto bad;
     if(ph.vaddr + ph.memsz < ph.vaddr)
       goto bad;
-    uint64 sz1;
+    uint64 sz1; // sz declared to be 0, 分配物理页，并且建立页表map
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz)) == 0)
       goto bad;
     sz = sz1;
@@ -71,6 +72,7 @@ exec(char *path, char **argv)
   if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0)
     goto bad;
   sz = sz1;
+  // an inaccessible page below user stack
   uvmclear(pagetable, sz-2*PGSIZE);
   sp = sz;
   stackbase = sp - PGSIZE;
@@ -81,17 +83,18 @@ exec(char *path, char **argv)
       goto bad;
     sp -= strlen(argv[argc]) + 1;
     sp -= sp % 16; // riscv sp must be 16-byte aligned
-    if(sp < stackbase)
+    if(sp < stackbase)  // 越界
       goto bad;
     if(copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
       goto bad;
     ustack[argc] = sp;
   }
   ustack[argc] = 0;
-
+  // ustack[i] 记录了参数argv[i]在栈的地址
   // push the array of argv[] pointers.
   sp -= (argc+1) * sizeof(uint64);
   sp -= sp % 16;
+  //把ustack放在用户栈中
   if(sp < stackbase)
     goto bad;
   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)

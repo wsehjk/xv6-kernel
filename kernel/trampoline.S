@@ -38,6 +38,7 @@ uservec:
         sd t2, 88(a0)
         sd s0, 96(a0)
         sd s1, 104(a0)
+        // where is 112(a0)
         sd a1, 120(a0)
         sd a2, 128(a0)
         sd a3, 136(a0)
@@ -138,4 +139,4 @@ userret:
         
         # return to user mode and user pc.
         # usertrapret() set up sstatus and sepc.
-        sret
+        sret  // sepc -> pc  ???
