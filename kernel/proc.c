@@ -235,7 +235,9 @@ void proc_freekernelpagetable(pagetable_t pagetable, uint64 sz){
   uvmunmap(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE, 0); 
   uvmunmap(pagetable, (uint64)etext, PGROUNDUP(PHYSTOP-(uint64)etext)/PGSIZE, 0); 
   uvmunmap(pagetable, TRAMPOLINE, PGROUNDUP(TRAMPOLINE_SIZE)/PGSIZE, 0);
-  uvmfree(pagetable, 0);   // 只调用free walk函数，  
+  //uvmfree(pagetable, 0);   // 只调用free walk函数，  
+  uvmunmap(pagetable, 0, (PGROUNDUP(sz))/PGSIZE, 0);
+  freewalk(pagetable);
 }
 
 // a user program that calls exec("/init")
@@ -264,6 +266,12 @@ userinit(void)
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
+  uint64 va;
+  for (va = 0; va < p->sz; va += PGSIZE) {
+    pte_t* pte = walk(p->pagetable, va, 0);
+    pte_t* newpte = walk(p->kernel_pagetable, va, 1);
+    *newpte = *pte&(~ PTE_U);
+  }
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -281,19 +289,35 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint sz;
+  uint64 oldsz, newsz;
   struct proc *p = myproc();
   // 映射进程的内核页表
-  sz = p->sz;
+  oldsz = p->sz;
+  newsz = oldsz + n; 
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    if((newsz = uvmalloc(p->pagetable, oldsz, newsz)) == 0) {
       return -1;
     }
-    
+    // oldsz = p->sz, newsz = oldsz + n;
+    uint64 a;
+    for (a = PGROUNDUP(oldsz); a < newsz; a += PGSIZE) {
+      pte_t* pte = walk(p->pagetable, a, 0);
+      if(pte == 0) 
+        panic("growproc: notmapped");
+      pte_t* newpte = walk(p->kernel_pagetable, a, 1);
+      if (newpte == 0) {
+          uvmdealloc(p->pagetable, oldsz, newsz);
+          uvmunmap(p->kernel_pagetable, PGROUNDUP(oldsz), (a - PGROUNDUP(oldsz))/PGSIZE, 0);
+          return -1;
+      }
+      *newpte = *pte&(~PTE_U);
+    }
   } else if(n < 0){
-    sz = uvmdealloc(p->pagetable, sz, sz + n);
+    newsz = uvmdealloc(p->pagetable, oldsz, newsz);
+    int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+    uvmunmap(p->kernel_pagetable, PGROUNDUP(newsz), npages, 0);
   }
-  p->sz = sz;
+  p->sz = newsz;
   return 0;
 }
 
@@ -313,12 +337,27 @@ fork(void)
 
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
-    freeproc(np);
+    freeproc(np);  // np->sz = 0
     release(&np->lock);
     return -1;
   }
   np->sz = p->sz;
-
+// np->pagetable已经有了p->pagetable种全部信息，
+  uint64 a;
+  for (a = 0; a < np->sz; a += PGSIZE) {
+    pte_t* pte = walk(np->pagetable, a, 0);
+    if(pte == 0) 
+      panic("growproc: notmapped");
+    pte_t* newpte = walk(np->kernel_pagetable, a, 1);
+    if (newpte == 0) {
+        uvmunmap(np->kernel_pagetable, np->kstack, 1, 0);
+        proc_freekernelpagetable(np->kernel_pagetable, a);
+        np->kernel_pagetable = 0;
+        freeproc(np);
+        return -1;
+    }
+    *newpte = *pte&(~PTE_U);
+  } 
   np->parent = p;
 
   // copy saved user registers.
@@ -341,7 +380,7 @@ fork(void)
 
   release(&np->lock);
 
-  return pid;
+  return pid; // 父进程中返回孩子的pid 
 }
 
 // Pass p's abandoned children to init.

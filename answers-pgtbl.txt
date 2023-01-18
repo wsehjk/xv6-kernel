@@ -1,2 +1,13 @@
-iscv64-unknown-elf-objdump -S user/initcode.o > user/initcode.asm
-riscv64-unknown-elf-ld -z max-page-size=4096 -T kernel/kernel.ld -o kernel/kernel kernel/entry.o kernel/start.o kernel/console.o kernel/printf.o kernel/uart.o kernel/kalloc.o kernel/spinlock.o kernel/string.o kernel/main.o kernel/vm.o kernel/proc.o kernel/swtch.o kernel/trampoline.o kernel/trap.o kernel/syscall.o kernel/sysproc.o kernel/bio.o kernel/fs.o kernel/log.o kernel/sleeplock.o kernel/file.o ker
+Explain the output of vmprint in terms of Fig 3-4 from the text. 
+1.What does page 0 contain? 
+    _init program code
+2.What is in page 2?
+    userstack which contains arguments of main function main(int argc, char**argv)
+3.When running in user mode, could the process read/write the memory mapped by page 1?
+    page 1 is an inaccessible page, PTE_U flag not set
+
+4.Explain why the third test "srcva + len < srcva" is necessary in copyin_new(): 
+give values for srcva and len for which the first two test fail(false)
+(i.e., they will not cause to return -1) 
+but for which the third one is true (resulting in returning -1).
+    len may be large enough to cause unsigned overflow

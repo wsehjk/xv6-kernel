@@ -72,6 +72,10 @@ exec(char *path, char **argv)
   if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0)
     goto bad;
   sz = sz1;
+
+  if (sz >= PLIC) {
+    goto bad;
+  }
   // an inaccessible page below user stack
   uvmclear(pagetable, sz-2*PGSIZE);
   sp = sz;
@@ -110,7 +114,8 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
-    
+  // 新进程占用了原有进程的proc，只申请的新页表，并在新页表中映射地址
+  
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;
@@ -119,6 +124,23 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
+  // 新进程的内核页表可以使用原有的内核页表，将user address mappings释放，并且从新的页表找到映射关系
+  uvmunmap(p->kernel_pagetable, 0, PGROUNDUP(oldsz)/PGSIZE, 0);
+  uint64 a;
+  for (a = 0; a < p->sz; a += PGSIZE) {
+    pte_t* pte = walk(p->pagetable, a, 0);
+    if(pte == 0) 
+      panic("growproc: notmapped");
+    pte_t* newpte = walk(p->kernel_pagetable, a, 1);
+    // if (newpte == 0) {
+    //     uvmunmap(p->kernel_pagetable, p->kstack, 1, 0);
+    //     proc_freekernelpagetable(p->kernel_pagetable, a);
+    //     p->kernel_pagetable = 0;
+    //     freeproc(p);
+    //     return -1;
+    // }
+    *newpte = *pte&(~PTE_U);
+  } 
   if (p->pid == 1) {
   
     vmprint(p->pagetable);
