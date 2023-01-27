@@ -45,7 +45,8 @@ kernelvec:
         sd t6, 240(sp)
 
 	// call the C trap handler in trap.c
-        call kerneltrap
+        call kerneltrap    // 无条件跳转指令，将下一条指令地址存放在ra中
+        //bc3fc0ef: jal	ra,80002a42 <kerneltrap>
 
         // restore registers.
         ld ra, 0(sp)

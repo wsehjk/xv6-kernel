@@ -28,7 +28,25 @@ trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
 }
-
+ 
+void handler_save(struct proc* p) {
+  p->handler_saved.ra = p->trapframe->ra;   p->handler_saved.sp = p->trapframe->sp;
+  p->handler_saved.gp = p->trapframe->gp;   p->handler_saved.tp = p->trapframe->tp;
+  p->handler_saved.t0 = p->trapframe->t0;   p->handler_saved.t1 = p->trapframe->t1;
+  p->handler_saved.t2 = p->trapframe->t2;   p->handler_saved.s0 = p->trapframe->s0;
+  p->handler_saved.s1 = p->trapframe->s1;   p->handler_saved.a0 = p->trapframe->a0;
+  p->handler_saved.a1 = p->trapframe->a1;   p->handler_saved.a2 = p->trapframe->a2;
+  p->handler_saved.a3 = p->trapframe->a3;   p->handler_saved.a4 = p->trapframe->a4;
+  p->handler_saved.a5 = p->trapframe->a5;   p->handler_saved.a6 = p->trapframe->a6;
+  p->handler_saved.a7 = p->trapframe->a7;   p->handler_saved.s2 = p->trapframe->s2;
+  p->handler_saved.s3 = p->trapframe->s3;   p->handler_saved.s4 = p->trapframe->s4;
+  p->handler_saved.s5 = p->trapframe->s5;   p->handler_saved.s6 = p->trapframe->s6;
+  p->handler_saved.s7 = p->trapframe->s7;   p->handler_saved.s8 = p->trapframe->s8;
+  p->handler_saved.s9 = p->trapframe->s9;   p->handler_saved.s10 = p->trapframe->s10;
+  p->handler_saved.s11 = p->trapframe->s11; p->handler_saved.t3 = p->trapframe->t3;
+  p->handler_saved.t4 = p->trapframe->t4;   p->handler_saved.t5 = p->trapframe->t5;
+  p->handler_saved.t6 = p->trapframe->t6;   p->handler_saved.epc = p->trapframe->epc;
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -43,9 +61,10 @@ usertrap(void)
 
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
-  w_stvec((uint64)kernelvec);
+  w_stvec((uint64)kernelvec);  // 在内核态接收到中断，kernelvec负责处理，
+                              // 把stvec指向这段代码，此时中断关闭
 
-  struct proc *p = myproc();
+  struct proc *p = myproc(); // 通过hartid tp寄存器得到
   
   // save user program counter.
   p->trapframe->epc = r_sepc();
@@ -62,7 +81,7 @@ usertrap(void)
 
     // an interrupt will change sstatus &c registers,
     // so don't enable until done with those registers.
-    intr_on();
+    intr_on();  // ecall 指令关闭中断
 
     syscall();
   } else if((which_dev = devintr()) != 0){
@@ -76,8 +95,16 @@ usertrap(void)
   if(p->killed)
     exit(-1);
 
+  if(which_dev == 2 && ++p->elapsed_time == p->interval && p->handler_called == 0) {
+    p->elapsed_time = 0;  // 时钟中断，达到周期，并且handler function没有被调用
+    p->handler_called = 1;
+    handler_save(p);
+    p->trapframe->epc = p->handler;
+    usertrapret();  // return user space to execute handler function 
+  }
+
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) 
     yield();
 
   usertrapret();
@@ -94,7 +121,7 @@ usertrapret(void)
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
   // we're back in user space, where usertrap() is correct.
-  intr_off();
+  intr_off(); // sret 会开中断
 
   // send syscalls, interrupts, and exceptions to trampoline.S
   w_stvec(TRAMPOLINE + (uservec - trampoline));

@@ -89,6 +89,10 @@ test1()
     if(count >= 10)
       break;
     foo(i, &j);
+    //if((i % 2500001) == 0) {
+    //    write(2, ".", 1);
+    //}
+    //*j += 1;
   }
   if(count < 10){
     printf("\ntest1 failed: too few calls to the handler\n");
@@ -131,7 +135,7 @@ test2()
     if (count == 0) {
       printf("\ntest2 failed: alarm not called\n");
       exit(1);
-    }
+    } // count = 1
     exit(0);
   }
   wait(&status);

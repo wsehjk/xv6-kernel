@@ -38,6 +38,7 @@ uservec:
         sd t2, 88(a0)
         sd s0, 96(a0)
         sd s1, 104(a0)
+        // where is 112
         sd a1, 120(a0)
         sd a2, 128(a0)
         sd a3, 136(a0)
@@ -63,7 +64,7 @@ uservec:
 	# save the user a0 in p->trapframe->a0
         csrr t0, sscratch
         sd t0, 112(a0)
-
+        // 已经保存了所有寄存器值，可以随意使用寄存器
         # restore kernel stack pointer from p->trapframe->kernel_sp
         ld sp, 8(a0)
 
@@ -93,13 +94,14 @@ userret:
         # a1: user page table, for satp.
 
         # switch to the user page table.
-        csrw satp, a1
-        sfence.vma zero, zero
-
+        csrw satp, a1  // a1记录了 p->pagetable用户的页表
+        sfence.vma zero, zero  
+        // 先切换回到用户页表，需要访问用户的trapframe来恢复寄存器
         # put the saved user a0 in sscratch, so we
         # can swap it with our a0 (TRAPFRAME) in the last step.
+        // usertrapret ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
         ld t0, 112(a0)
-        csrw sscratch, t0
+        csrw sscratch, t0  // sscratch中保存 p->trapframe->a0
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)
@@ -111,6 +113,7 @@ userret:
         ld t2, 88(a0)
         ld s0, 96(a0)
         ld s1, 104(a0)
+        // ld a0, 112(a0)      
         ld a1, 120(a0)
         ld a2, 128(a0)
         ld a3, 136(a0)
@@ -134,8 +137,9 @@ userret:
         ld t6, 280(a0)
 
 	# restore user a0, and save TRAPFRAME in sscratch
-        csrrw a0, sscratch, a0
-        
+        csrrw a0, sscratch, a0  //原本a0保存trapframe(0x3fffffe000), sscratch保存p->trapfram->a0
+        // 现在交换， 在user模式下，sscratch都是指向了trapframe，在uservec中直接使用
         # return to user mode and user pc.
         # usertrapret() set up sstatus and sepc.
-        sret
+        sret // 返回user模式，并且sepc->pc
+        // 和ecall相反

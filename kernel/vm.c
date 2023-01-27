@@ -101,11 +101,11 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
+  if(pte == 0)  // level2 和level1对应的页表项不存在
     return 0;
-  if((*pte & PTE_V) == 0)
+  if((*pte & PTE_V) == 0)  // level0 的页表项无效
     return 0;
-  if((*pte & PTE_U) == 0)
+  if((*pte & PTE_U) == 0)  // level0的页表项用户不可见
     return 0;
   pa = PTE2PA(*pte);
   return pa;
@@ -417,7 +417,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     if(n > max)
       n = max;
 
-    char *p = (char *) (pa0 + (srcva - va0));
+    char *p = (char *) (pa0 + (srcva - va0)); // 物理页地址+偏移量
     while(n > 0){
       if(*p == '\0'){
         *dst = '\0';
