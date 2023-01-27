@@ -29,7 +29,7 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
  
-void handler_save(struct proc* p) {
+/*void handler_save(struct proc* p) {
   p->handler_saved.ra = p->trapframe->ra;   p->handler_saved.sp = p->trapframe->sp;
   p->handler_saved.gp = p->trapframe->gp;   p->handler_saved.tp = p->trapframe->tp;
   p->handler_saved.t0 = p->trapframe->t0;   p->handler_saved.t1 = p->trapframe->t1;
@@ -46,7 +46,7 @@ void handler_save(struct proc* p) {
   p->handler_saved.s11 = p->trapframe->s11; p->handler_saved.t3 = p->trapframe->t3;
   p->handler_saved.t4 = p->trapframe->t4;   p->handler_saved.t5 = p->trapframe->t5;
   p->handler_saved.t6 = p->trapframe->t6;   p->handler_saved.epc = p->trapframe->epc;
-}
+}*/
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -98,7 +98,8 @@ usertrap(void)
   if(which_dev == 2 && ++p->elapsed_time == p->interval && p->handler_called == 0) {
     p->elapsed_time = 0;  // 时钟中断，达到周期，并且handler function没有被调用
     p->handler_called = 1;
-    handler_save(p);
+    //handler_save(p);
+    memmove(p->handler_trapframe, p->trapframe, sizeof(struct trapframe));
     p->trapframe->epc = p->handler;
     usertrapret();  // return user space to execute handler function 
   }

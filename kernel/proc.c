@@ -113,6 +113,11 @@ found:
     return 0;
   }
 
+  if((p->handler_trapframe = (struct trapframe*)kalloc()) == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
@@ -142,6 +147,9 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  if(p->handler_trapframe)
+    kfree((void*)p->handler_trapframe);
+  p->handler_trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -189,6 +197,13 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  if(mappages(pagetable, HANDLER_TRAPFRAME, PGSIZE,
+              (uint64)p->handler_trapframe, PTE_R | PTE_W) < 0) {
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmunmap(pagetable,TRAPFRAME, 1, 0);  // remove mapping of trapframe,,,p->trapframe
+    uvmfree(pagetable, 0);   // free pagetable
+    return 0;       
+  }
   return pagetable;
 }
 
@@ -199,6 +214,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  uvmunmap(pagetable, HANDLER_TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
 }
 

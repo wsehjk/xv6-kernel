@@ -19,40 +19,40 @@ struct context {
 };
 // 调用handler函数时，保存trapframe中的所有用户寄存器以及pc到 handler_saved结构体
 // 在sigreturn 函数中恢复
-struct handler_saved {   
-  /*   0 */ uint64 ra;    
-  /*   8 */ uint64 sp;
-  /*  16 */ uint64 gp;
-  /*  24 */ uint64 tp;
-  /*  32 */ uint64 t0;
-  /*  40 */ uint64 t1;
-  /*  48 */ uint64 t2;
-  /*  56 */ uint64 s0;
-  /*  64 */ uint64 s1;
-  /*  72 */ uint64 a0;
-  /*  80 */ uint64 a1;
-  /*  88 */ uint64 a2;
-  /*  96 */ uint64 a3;
-  /* 104 */ uint64 a4;
-  /* 112 */ uint64 a5;
-  /* 120 */ uint64 a6;
-  /* 128 */ uint64 a7;
-  /* 136 */ uint64 s2;
-  /* 144 */ uint64 s3;
-  /* 152 */ uint64 s4;
-  /* 160 */ uint64 s5;
-  /* 168 */ uint64 s6;
-  /* 176 */ uint64 s7;
-  /* 184 */ uint64 s8;
-  /* 192 */ uint64 s9;
-  /* 200 */ uint64 s10;
-  /* 208 */ uint64 s11;
-  /* 216 */ uint64 t3;
-  /* 224 */ uint64 t4;
-  /* 232 */ uint64 t5;
-  /* 240 */ uint64 t6;
-  /* 248 */ uint64 epc;
-};
+//struct handler_saved {   
+//  /*   0 */ uint64 ra;    
+//  /*   8 */ uint64 sp;
+//  /*  16 */ uint64 gp;
+//  /*  24 */ uint64 tp;
+//  /*  32 */ uint64 t0;
+//  /*  40 */ uint64 t1;
+//  /*  48 */ uint64 t2;
+//  /*  56 */ uint64 s0;
+//  /*  64 */ uint64 s1;
+//  /*  72 */ uint64 a0;
+//  /*  80 */ uint64 a1;
+//  /*  88 */ uint64 a2;
+//  /*  96 */ uint64 a3;
+//  /* 104 */ uint64 a4;
+//  /* 112 */ uint64 a5;
+//  /* 120 */ uint64 a6;
+//  /* 128 */ uint64 a7;
+//  /* 136 */ uint64 s2;
+//  /* 144 */ uint64 s3;
+//  /* 152 */ uint64 s4;
+//  /* 160 */ uint64 s5;
+//  /* 168 */ uint64 s6;
+//  /* 176 */ uint64 s7;
+//  /* 184 */ uint64 s8;
+//  /* 192 */ uint64 s9;
+//  /* 200 */ uint64 s10;
+//  /* 208 */ uint64 s11;
+//  /* 216 */ uint64 t3;
+//  /* 224 */ uint64 t4;
+//  /* 232 */ uint64 t5;
+//  /* 240 */ uint64 t6;
+//  /* 248 */ uint64 epc;
+//};
 // Per-CPU state.
 struct cpu {
   struct proc *proc;          // The process running on this cpu, or null.
@@ -134,6 +134,7 @@ struct proc {
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   struct trapframe *trapframe; // data page for trampoline.S
+  struct trapframe *handler_trapframe;// trapframe used to backup trapframe when time interrupt and handler enabled  
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
@@ -141,6 +142,5 @@ struct proc {
   uint64 handler;              // user handler address 
   int interval;                // time interval 
   int elapsed_time;            // ticks since last time handler called
-  struct handler_saved handler_saved;  // 
   int handler_called;     // whether handler function is calling
 };
