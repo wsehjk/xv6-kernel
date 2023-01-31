@@ -362,28 +362,12 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-  struct proc* p = myproc();
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    if (va0 >= p->sz) {
-      return -1;
-    }
-    // va0 < p->sz
-    pte_t* pte = walk(pagetable, va0, 0);
-    if(pte == 0 || (*pte&PTE_V) == 0) {
-      pa0 = (uint64)kalloc(); 
-      if(pa0 == 0) 
-        return -1;
-      memset((void*)pa0, 0, PGSIZE);
-      if(mappages(pagetable, va0, PGSIZE, pa0, PTE_R|PTE_U|PTE_W) < 0) {
-        kfree((void*)pa0);
-        return -1;
-      }
-    }
-    else if ((*pte&PTE_U) == 0)  // invalid guard page below stack 
-      return -1;
-    else 
-      pa0 = PTE2PA(*pte);
+    pa0 = walkaddr(pagetable, va0);
+    if (pa0 == 0)
+      return -1; 
+
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
@@ -403,27 +387,29 @@ int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
   uint64 n, va0, pa0;
-  struct proc* p = myproc();
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
-    if (va0>=p->sz)
-        return -1;
-    // va0 < p->sz
-    pte_t* pte = walk(pagetable, va0, 0);
-    if(pte == 0 || (*pte&PTE_V) == 0) {
-      pa0 = (uint64)kalloc(); 
-      if(pa0 == 0) 
-        return -1;
-      memset((void*)pa0, 0, PGSIZE);
-      if(mappages(pagetable, va0, PGSIZE, pa0, PTE_R|PTE_U|PTE_W) < 0) {
-        kfree((void*)pa0);
-        return -1;
-      }
-    }
-    else if ((*pte&PTE_U) == 0)  // invalid guard page below stack 
-      return -1;
-    else 
-      pa0 = PTE2PA(*pte);
+    pa0 = walkaddr(pagetable, va0);
+    if (pa0 == 0)
+      return -1; 
+    // if (va0>=p->sz)
+    //     return -1;
+    // // va0 < p->sz
+    // pte_t* pte = walk(pagetable, va0, 0);
+    // if(pte == 0 || (*pte&PTE_V) == 0) {
+    //   pa0 = (uint64)kalloc(); 
+    //   if(pa0 == 0) 
+    //     return -1;
+    //   memset((void*)pa0, 0, PGSIZE);
+    //   if(mappages(pagetable, va0, PGSIZE, pa0, PTE_R|PTE_U|PTE_W) < 0) {
+    //     kfree((void*)pa0);
+    //     return -1;
+    //   }
+    // }
+    // else if ((*pte&PTE_U) == 0)  // invalid guard page below stack 
+    //   return -1;
+    // else 
+    //   pa0 = PTE2PA(*pte);
     n = PGSIZE - (srcva - va0);
     if(n > len)
       n = len;
@@ -445,27 +431,29 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 {
   uint64 n, va0, pa0;
   int got_null = 0;
-  struct proc* p = myproc();
   while(got_null == 0 && max > 0){
     va0 = PGROUNDDOWN(srcva);
-    if (va0>=p->sz)
-        return -1;
-    // va0 < p->sz
-    pte_t* pte = walk(pagetable, va0, 0);
-    if(pte == 0 || (*pte&PTE_V) == 0) {
-      pa0 = (uint64)kalloc(); 
-      if(pa0 == 0) 
-        return -1;
-      memset((void*)pa0, 0, PGSIZE);
-      if(mappages(pagetable, va0, PGSIZE, pa0, PTE_R|PTE_U|PTE_W) < 0) {
-        kfree((void*)pa0);
-        return -1;
-      }
-    }
-    else if ((*pte&PTE_U) == 0) // invalid guard page below stack
-      return -1;
-    else 
-      pa0 = PTE2PA(*pte);
+    pa0 = walkaddr(pagetable, va0);
+    if (pa0 == 0)
+      return -1; 
+    //if (va0>=p->sz)
+    //    return -1;
+    //// va0 < p->sz
+    //pte_t* pte = walk(pagetable, va0, 0);
+    //if(pte == 0 || (*pte&PTE_V) == 0) {
+    //  pa0 = (uint64)kalloc(); 
+    //  if(pa0 == 0) 
+    //    return -1;
+    //  memset((void*)pa0, 0, PGSIZE);
+    //  if(mappages(pagetable, va0, PGSIZE, pa0, PTE_R|PTE_U|PTE_W) < 0) {
+    //    kfree((void*)pa0);
+    //    return -1;
+    //  }
+    //}
+    //else if ((*pte&PTE_U) == 0) // invalid guard page below stack
+    //  return -1;
+    //else 
+    //  pa0 = PTE2PA(*pte);
     n = PGSIZE - (srcva - va0);
     if(n > max)
       n = max;

@@ -71,7 +71,7 @@ exec(char *path, char **argv)
   uvmclear(pagetable, sz-2*PGSIZE);
   sp = sz;
   stackbase = sp - PGSIZE;
-  p->sz = sz;
+
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
@@ -117,7 +117,6 @@ exec(char *path, char **argv)
 
  bad:
   if(pagetable) {
-    p->sz = oldsz;
     proc_freepagetable(pagetable, sz);
   }
   if(ip){

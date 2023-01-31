@@ -62,12 +62,26 @@ argint(int n, int *ip)
 }
 
 // Retrieve an argument as a pointer.
-// Doesn't check for legality, since
-// copyin/copyout will do that.
+// check for legality, 
 int
 argaddr(int n, uint64 *ip)
 {
   *ip = argraw(n);
+  uint64 uaddr = *ip;
+  struct proc* p = myproc();
+  uint64 ustack = PGROUNDDOWN(p->trapframe->sp);
+  uint64 pa = walkaddr(p->pagetable, uaddr);
+  if (pa == 0) {
+    if(uaddr >= p->sz || uaddr < ustack)
+      return -1;
+    pa = (uint64)kalloc();
+    if(pa == 0)
+      return -1;
+    if(mappages(p->pagetable, PGROUNDDOWN(uaddr), PGSIZE, pa, PTE_U|PTE_R|PTE_W) < 0) {
+      kfree((void*)pa);
+      return -1;
+    }
+  }
   return 0;
 }
 
