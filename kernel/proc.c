@@ -38,7 +38,7 @@ procinit(void)
       if(pa == 0)
         panic("kalloc");
       uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W); // guard page 没有映射
       p->kstack = va;
   }
   kvminithart();
@@ -136,6 +136,7 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  //printf("freed process name is %s\n", p->name);
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
@@ -238,18 +239,24 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint sz;
+  uint64 oldsz, newsz;
   struct proc *p = myproc();
-
-  sz = p->sz;
-  if(n > 0){
+  uint64 ustack = PGROUNDUP(p->trapframe->sp);
+  oldsz = p->sz;
+  newsz = p->sz+n;
+  if (newsz < ustack)
+    return -1;
+  /*if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
+  }*/
+  if (n < 0) {
+    uvmdealloc(p->pagetable, oldsz, newsz);
   }
-  p->sz = sz;
+  p->sz = newsz;
   return 0;
 }
 
@@ -334,8 +341,10 @@ exit(int status)
 {
   struct proc *p = myproc();
 
-  if(p == initproc)
+  if(p == initproc) {
+    printf("status is %d\n", status);
     panic("init exiting");
+  }
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){

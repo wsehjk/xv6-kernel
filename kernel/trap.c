@@ -50,7 +50,9 @@ usertrap(void)
   // save user program counter.
   p->trapframe->epc = r_sepc();
   
-  if(r_scause() == 8){
+  uint64 cause = r_scause();
+  uint64 ustack = PGROUNDUP(p->trapframe->sp);
+  if(cause == 8){
     // system call
 
     if(p->killed)
@@ -65,6 +67,22 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if ((cause == 15 || cause == 13) && r_stval() >= ustack) {
+    uint64 fault_va = PGROUNDDOWN(r_stval());
+    if (fault_va >= p->sz) 
+      p->killed = 1;
+    else {
+      uint64 pa = (uint64)kalloc();
+      if (pa == 0) {
+        p->killed = 1;
+      } else {
+        memset((void*)pa, 0, PGSIZE);
+        if (mappages(p->pagetable, fault_va, PGSIZE, pa, PTE_R|PTE_W|PTE_U) < 0) {
+          kfree((void*)pa);
+          p->killed = 1;
+        }
+      }
+    }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
@@ -74,7 +92,7 @@ usertrap(void)
   }
 
   if(p->killed)
-    exit(-1);
+    exit(-1);;
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
