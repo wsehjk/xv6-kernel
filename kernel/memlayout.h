@@ -65,3 +65,5 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+#define ROUNDUPEND ((((uint64)end)+PGSIZE-1) & ~(PGSIZE-1))
+#define REFARRLEN (PHYSTOP-ROUNDUPEND)/PGSIZE
