@@ -13,7 +13,7 @@ void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
-//extern uint32 ref[REFARRLEN];
+uint16 ref[REFARRLEN] = {0};
 struct run {
   struct run *next;
 };

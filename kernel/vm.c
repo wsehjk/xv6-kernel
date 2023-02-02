@@ -14,7 +14,7 @@ pagetable_t kernel_pagetable;
 extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
-
+extern uint16 ref[REFARRLEN];
 /*
  * create a direct-map page table for the kernel.
  */
@@ -186,8 +186,11 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
-    if(do_free){
-      uint64 pa = PTE2PA(*pte);
+
+    uint64 pa = PTE2PA(*pte);
+    uint64 index = REFINDEX(pa); 
+    ref[index] --;
+    if(do_free&&ref[index] == 0){
       kfree((void*)pa);
     }
     *pte = 0;
@@ -219,6 +222,8 @@ uvminit(pagetable_t pagetable, uchar *src, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
+  uint64 index = REFINDEX((uint64)mem);
+  ref[index] = 1;
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
   memmove(mem, src, sz);
 }
@@ -243,10 +248,12 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     }
     memset(mem, 0, PGSIZE);
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
-      kfree(mem);
+      kfree(mem); 
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
+    uint64 index = REFINDEX((uint64)mem);
+    ref[index] = 1; //  记录物理页的引用量为1
   }
   return newsz;
 }
@@ -311,22 +318,25 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+  //char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
+    *pte &= ~PTE_W;    // 标记为只读
+    *pte |= PTE_COW;
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    //if((mem = kalloc()) == 0)
+    //  goto err;
+    //memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
     }
+    uint64 index = REFINDEX(pa);
+    ref[index] ++;
   }
   return 0;
 
@@ -351,6 +361,7 @@ uvmclear(pagetable_t pagetable, uint64 va)
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
+// write to user space, could be a cow page 
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {

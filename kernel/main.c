@@ -16,9 +16,6 @@ main()
     printf("\n");
     printf("xv6 kernel is booting\n");
     printf("\n");
-    //printf("PHYSTOP is %p\n", PHYSTOP);
-    //printf("ROUNDUPEND is %p\n", ROUNDUPEND);
-    //printf("REFARRLEN is %p\n", REFARRLEN);
     kinit();         // physical page allocator
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging

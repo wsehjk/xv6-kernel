@@ -10,7 +10,7 @@ struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
-
+extern int ref[REFARRLEN];
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
@@ -28,7 +28,28 @@ trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
 }
-
+int cow_handler(pte_t* pte, uint64 fault_va) {
+  uint64 pa = PTE2PA(*pte);
+  uint64 flags = PTE_FLAGS(*pte);
+  uint64 index = REFINDEX(pa);
+  // if (ref[index] == 1) {  //只有当前进程引用了该物理页
+  //   *pte |= PTE_W;
+  //   *pte &= ~PTE_COW;
+  if (ref[index] > 1){   // ref[index] > 1
+    uint64 newpa = (uint64)kalloc();// 申请新的内存
+    if (newpa == 0)
+      return -1; 
+    memmove((void*)newpa,(const void*)pa, PGSIZE);
+    ref[index] -= 1;
+    uint64 newindex = REFINDEX(newpa);
+    ref[newindex] = 1;
+    *pte = PA2PTE(newpa)|flags;
+  }
+  // ref[index] 可能原本为1
+  *pte |= PTE_W;
+  *pte &= ~PTE_COW;
+  return 0;
+}
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -49,8 +70,8 @@ usertrap(void)
   
   // save user program counter.
   p->trapframe->epc = r_sepc();
-  
-  if(r_scause() == 8){
+  uint64 cause = r_scause(); 
+  if(cause == 8){
     // system call
 
     if(p->killed)
@@ -65,7 +86,16 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  }else if(cause == 13 || cause == 15){
+    uint64 fault_va = r_stval();
+    pte_t* pte = walk(p->pagetable, fault_va, 0);
+    if (pte == 0 || (*pte&PTE_V) == 0) {
+      p->killed = 1;
+    }
+    else if ((*pte&PTE_COW)&&cow_handler(pte,fault_va) < 0){   // cow fault
+      p->killed = 1;
+    } 
+  }else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
