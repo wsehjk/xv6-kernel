@@ -72,7 +72,7 @@ pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
   if(va >= MAXVA)
-    panic("walk");
+      return 0;
 
   for(int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
@@ -188,9 +188,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not a leaf");
 
     uint64 pa = PTE2PA(*pte);
-    uint64 index = REFINDEX(pa); 
-    ref[index] --;
-    if(do_free&&ref[index] == 0){
+    if(do_free){
       kfree((void*)pa);
     }
     *pte = 0;
@@ -222,8 +220,8 @@ uvminit(pagetable_t pagetable, uchar *src, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
-  uint64 index = REFINDEX((uint64)mem);
-  ref[index] = 1;
+  //uint64 index = REFINDEX((uint64)mem);
+  //ref[index] = 1;
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
   memmove(mem, src, sz);
 }
@@ -252,8 +250,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
-    uint64 index = REFINDEX((uint64)mem);
-    ref[index] = 1; //  记录物理页的引用量为1
+
   }
   return newsz;
 }
@@ -294,6 +291,23 @@ freewalk(pagetable_t pagetable)
     }
   }
   kfree((void*)pagetable);
+}
+const char* indents[]= {".. .. ..", ".. ..", "..", 0};
+void printwalk(pagetable_t pagetable, int level) {
+    for (int i = 0; i < 512; ++i) {
+      pte_t pte = pagetable[i];
+      if ((pte & PTE_V)) {
+        uint64 child = PTE2PA(pte); 
+        printf("%s%d: pte %p pa %p\n", indents[level],i, pte, child);
+        if (level)
+          printwalk((pagetable_t)child, level-1);
+      }
+    }
+}
+void vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable);
+  printwalk(pagetable, 2);
+  return ;
 }
 
 // Free user memory pages,
@@ -369,9 +383,15 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
+    //pa0 = walkaddr(pagetable, va0);
+    //if(pa0 == 0)
+    //  return -1;
+    pte_t* pte = walk(pagetable, va0, 0);
+    if (pte == 0 || (*pte&PTE_V) == 0 || (*pte&PTE_R) == 0)
       return -1;
+    if ((*pte&PTE_COW)&&cow_handler(pte,va0) < 0)
+      return -1;
+    pa0 = PTE2PA(*pte);
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

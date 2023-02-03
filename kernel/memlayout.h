@@ -65,5 +65,5 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
-#define REFARRLEN (PHYSTOP-KERNBASE)/PGSIZE
-#define REFINDEX(pa) (pa-KERNBASE)>>PGSHIFT
+#define REFARRLEN (PHYSTOP)/PGSIZE
+#define REFINDEX(pa) (pa)>>PGSHIFT

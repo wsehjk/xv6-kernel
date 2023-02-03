@@ -31,23 +31,14 @@ trapinithart(void)
 int cow_handler(pte_t* pte, uint64 fault_va) {
   uint64 pa = PTE2PA(*pte);
   uint64 flags = PTE_FLAGS(*pte);
-  uint64 index = REFINDEX(pa);
-  // if (ref[index] == 1) {  //只有当前进程引用了该物理页
-  //   *pte |= PTE_W;
-  //   *pte &= ~PTE_COW;
-  if (ref[index] > 1){   // ref[index] > 1
-    uint64 newpa = (uint64)kalloc();// 申请新的内存
-    if (newpa == 0)
-      return -1; 
-    memmove((void*)newpa,(const void*)pa, PGSIZE);
-    ref[index] -= 1;
-    uint64 newindex = REFINDEX(newpa);
-    ref[newindex] = 1;
-    *pte = PA2PTE(newpa)|flags;
-  }
-  // ref[index] 可能原本为1
-  *pte |= PTE_W;
-  *pte &= ~PTE_COW;
+  uint64 newpa = (uint64)kalloc();// 申请新的内存
+  if (newpa == 0)
+    return -1; 
+  memmove((void*)newpa,(const void*)pa, PGSIZE);
+  *pte = PA2PTE(newpa)|flags;
+  *pte |= PTE_W;   // 标记为可写
+  *pte &= ~PTE_COW; // 清除cow 标志
+  kfree((void*)pa);
   return 0;
 }
 //
@@ -84,12 +75,15 @@ usertrap(void)
     // an interrupt will change sstatus &c registers,
     // so don't enable until done with those registers.
     intr_on();
-
+    
     syscall();
   }else if(cause == 13 || cause == 15){
     uint64 fault_va = r_stval();
     pte_t* pte = walk(p->pagetable, fault_va, 0);
-    if (pte == 0 || (*pte&PTE_V) == 0) {
+    if (pte == 0 || (*pte&PTE_V) == 0 ) {
+      p->killed = 1;
+    }
+    else if(pte&&(*pte&PTE_U) == 0) {
       p->killed = 1;
     }
     else if ((*pte&PTE_COW)&&cow_handler(pte,fault_va) < 0){   // cow fault

@@ -190,6 +190,7 @@ proc_pagetable(struct proc *p)
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
+  //vmprint(pagetable);
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
@@ -273,6 +274,11 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+  // if (p->pid > 1) {
+  //   printf("fork called, p->name is %s\n", p->name);
+  //   vmprint(p->pagetable);
+  //   vmprint(np->pagetable);
+  // }
   np->sz = p->sz;
 
   np->parent = p;
