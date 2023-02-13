@@ -389,7 +389,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     pte_t* pte = walk(pagetable, va0, 0);
     if (pte == 0 || (*pte&PTE_V) == 0 || (*pte&PTE_R) == 0)
       return -1;
-    if ((*pte&PTE_COW)&&cow_handler(pte,va0) < 0)
+    if ((*pte&PTE_COW)&&cow_handler(pte) < 0)
       return -1;
     pa0 = PTE2PA(*pte);
     n = PGSIZE - (dstva - va0);

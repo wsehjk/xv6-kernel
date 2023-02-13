@@ -10,7 +10,7 @@ struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
-extern int ref[REFARRLEN];
+// extern int ref[REFARRLEN];cow_handler() not check whether ref[pa] being one;avoid redundant copy
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
@@ -28,7 +28,9 @@ trapinithart(void)
 {
   w_stvec((uint64)kernelvec);
 }
-int cow_handler(pte_t* pte, uint64 fault_va) {
+// 优化：在申请新的内存用于复制之前，检查物理页的引用量是否为1
+// 如果已经为1说明只有一个进程引用，那么不用复制修改页表项标志即可
+int cow_handler(pte_t* pte) {
   uint64 pa = PTE2PA(*pte);
   uint64 flags = PTE_FLAGS(*pte);
   uint64 newpa = (uint64)kalloc();// 申请新的内存
@@ -38,7 +40,7 @@ int cow_handler(pte_t* pte, uint64 fault_va) {
   *pte = PA2PTE(newpa)|flags;
   *pte |= PTE_W;   // 标记为可写
   *pte &= ~PTE_COW; // 清除cow 标志
-  kfree((void*)pa);
+  kfree((void*)pa);  // kfree 检查引用量
   return 0;
 }
 //
@@ -60,7 +62,7 @@ usertrap(void)
   struct proc *p = myproc();
   
   // save user program counter.
-  p->trapframe->epc = r_sepc();
+  p->trapframe->epc = r_sepc(); // 指向返回用户空间后执行的第一条指令
   uint64 cause = r_scause(); 
   if(cause == 8){
     // system call
@@ -80,13 +82,13 @@ usertrap(void)
   }else if(cause == 13 || cause == 15){
     uint64 fault_va = r_stval();
     pte_t* pte = walk(p->pagetable, fault_va, 0);
-    if (pte == 0 || (*pte&PTE_V) == 0 ) {
+    if (pte == 0 || (*pte&PTE_V) == 0 ) { // 可能是lazy allocated
+      p->killed = 1;
+    }  // pte!=0 
+    else if((*pte&PTE_U) == 0) {  // 直接报错
       p->killed = 1;
     }
-    else if(pte&&(*pte&PTE_U) == 0) {
-      p->killed = 1;
-    }
-    else if ((*pte&PTE_COW)&&cow_handler(pte,fault_va) < 0){   // cow fault
+    else if ((*pte&PTE_COW)&&cow_handler(pte) < 0){   // cow fault
       p->killed = 1;
     } 
   }else if((which_dev = devintr()) != 0){

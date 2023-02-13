@@ -147,7 +147,7 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
-int             cow_handler(pte_t* pte, uint64 fault_va); 
+int             cow_handler(pte_t* pte); 
 
 // uart.c
 void            uartinit(void);

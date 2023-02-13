@@ -177,9 +177,9 @@ proc_pagetable(struct proc *p)
   // map the trapframe just below TRAMPOLINE, for trampoline.S.
   if(mappages(pagetable, TRAPFRAME, PGSIZE,
               (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
-    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
-    uvmfree(pagetable, 0);
-    return 0;
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0); //发生错误，要让做过的事没有发生过，调用者只得到错误信息
+    uvmfree(pagetable, 0);  // trapframe映射没有完成，但是trampoline映射已经完成，删除映射关系，
+    return 0;              // 并且回收页表
   }
 
   return pagetable;

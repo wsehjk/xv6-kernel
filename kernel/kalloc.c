@@ -13,7 +13,7 @@ void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
-uint16 ref[REFARRLEN] = {0};
+uint16 ref[REFARRLEN] = {0};  // 每个物理页初始引用量为0
 struct run {
   struct run *next;
 };
