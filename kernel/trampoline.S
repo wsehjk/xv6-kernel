@@ -27,7 +27,7 @@ uservec:
 	# swap a0 and sscratch
         # so that a0 is TRAPFRAME
         csrrw a0, sscratch, a0
-
+        // 使用user pagetable
         # save the user registers in TRAPFRAME
         sd ra, 40(a0)
         sd sp, 48(a0)
@@ -98,8 +98,8 @@ userret:
 
         # put the saved user a0 in sscratch, so we
         # can swap it with our a0 (TRAPFRAME) in the last step.
-        ld t0, 112(a0)
-        csrw sscratch, t0
+        ld t0, 112(a0) // a0指向trapframe
+        csrw sscratch, t0  // sscratch：返回用户空间之后a0的值，也就是uservec中保存的值
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)

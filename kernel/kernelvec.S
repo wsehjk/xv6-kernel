@@ -51,7 +51,9 @@ kernelvec:
         ld ra, 0(sp)
         ld sp, 8(sp)
         ld gp, 16(sp)
-        // not this, in case we moved CPUs: ld tp, 24(sp)
+        // not this, in case we moved CPUs: ld tp, 24(sp)  ??????
+        // kerneltrap-->yield, 进程P放弃了cpu，被另一个cpu调度, cpuid变了
+        // 在usertrap中tp,被恢复
         ld t0, 32(sp)
         ld t1, 40(sp)
         ld t2, 48(sp)
@@ -83,7 +85,7 @@ kernelvec:
         addi sp, sp, 256
 
         // return to whatever we were doing in the kernel.
-        sret
+        sret 
 
         #
         # machine-mode timer interrupt.

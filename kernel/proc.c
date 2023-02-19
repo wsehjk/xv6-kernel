@@ -476,7 +476,7 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        swtch(&c->context, &p->context);
+        swtch(&c->context, &p->context);  // 可能到sched, 也能到forkret
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -504,17 +504,17 @@ sched(void)
   int intena;
   struct proc *p = myproc();
 
-  if(!holding(&p->lock))
+  if(!holding(&p->lock))   // p->lock holded 检查放弃cpu的线程是否获得了锁
     panic("sched p->lock");
-  if(mycpu()->noff != 1)
+  if(mycpu()->noff != 1)  
     panic("sched locks");
   if(p->state == RUNNING)
     panic("sched running");
-  if(intr_get())
+  if(intr_get())   //中断应该关闭
     panic("sched interruptible");
 
   intena = mycpu()->intena;
-  swtch(&p->context, &mycpu()->context);
+  swtch(&p->context, &mycpu()->context);   // mycpu()->context
   mycpu()->intena = intena;
 }
 
@@ -523,10 +523,10 @@ void
 yield(void)
 {
   struct proc *p = myproc();
-  acquire(&p->lock);
+  acquire(&p->lock);  // 放弃cpu的kernel thread获取锁
   p->state = RUNNABLE;
   sched();
-  release(&p->lock);
+  release(&p->lock); // swtch 到这里，被调度的进程放弃锁
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -537,7 +537,7 @@ forkret(void)
   static int first = 1;
 
   // Still holding p->lock from scheduler.
-  release(&myproc()->lock);
+  release(&myproc()->lock);  // scheduler加了锁
 
   if (first) {
     // File system initialization must be run in the context of a
@@ -572,7 +572,7 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
-  sched();
+   sched();
 
   // Tidy up.
   p->chan = 0;

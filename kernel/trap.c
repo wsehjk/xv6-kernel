@@ -105,7 +105,7 @@ usertrapret(void)
   p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
   p->trapframe->kernel_trap = (uint64)usertrap;
   p->trapframe->kernel_hartid = r_tp();         // hartid for cpuid()
-
+  // 返回用户区之间记录cpuid，因为tp寄存器的会被修改
   // set up the registers that trampoline.S's sret will use
   // to get to user space.
   
@@ -135,6 +135,8 @@ kerneltrap()
 {
   int which_dev = 0;
   uint64 sepc = r_sepc();
+  //中断发生，被中断指令的地址，要返回的地址，存放在sepc变量中，可以放在callee-saved reg中由被调用函数保存
+  // 也可以放在caller-saved reg中 由kerneltrap保存在内核栈上
   uint64 sstatus = r_sstatus();
   uint64 scause = r_scause();
   

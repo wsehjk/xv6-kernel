@@ -1,0 +1,36 @@
+thread_1 put a (key1, value1) pair in table[i], and is about to execute insert(key1, value1, p, n);
+n is table[i], head pointer of table linklist 
+at the same time thread_2 put a (key2, value2) pair in table[i], and is about to execute insert(key2, value2, p, n);
+after thread_2 complete insertion, (key1, value1) insert by thread_1 missed
+
+correctness&performance 
+leslie:~/xv6-2020
+[git->thread*]$ make ph 
+gcc -o ph -g -O2 notxv6/ph.c -pthread
+leslie:~/xv6-2020
+[git->thread*]$ ./ph 1
+100000 puts, 6.279 seconds, 15926 puts/second
+0: 0 keys missing
+100000 gets, 6.543 seconds, 15284 gets/second
+leslie:~/xv6-2020
+[git->thread*]$ ./ph 2
+100000 puts, 7.790 seconds, 12837 puts/second
+0: 0 keys missing
+1: 0 keys missing
+200000 gets, 6.313 seconds, 31680 gets/second
+// one lock over whole hash table
+leslie:~/xv6-2020
+[git->thread*]$ make ph 
+gcc -o ph -g -O2 notxv6/ph.c -pthread
+leslie:~/xv6-2020
+[git->thread*]$ ./ph 1
+100000 puts, 6.325 seconds, 15809 puts/second
+0: 0 keys missing
+100000 gets, 6.316 seconds, 15834 gets/second
+leslie:~/xv6-2020
+[git->thread*]$ ./ph 2
+100000 puts, 3.239 seconds, 30878 puts/second
+1: 0 keys missing
+0: 0 keys missing
+200000 gets, 6.347 seconds, 31509 gets/second
+// one lock per hash table bucket 
