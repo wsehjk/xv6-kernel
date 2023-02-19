@@ -30,7 +30,19 @@ barrier()
   // Block until all threads have called barrier() and
   // then increment bstate.round.
   //
-  
+// t0,t1...tn-1 都被阻塞，并且没有锁
+// tn线程获得了锁，并且唤醒了t0,..tn-1
+// tn返回释放锁，t0,t1,...tn-1被唤醒，并且获得锁(这样进入提前返回下一轮循环的线程无法进入barrier),并且在返回前释放锁
+  pthread_mutex_lock(&bstate.barrier_mutex);
+  bstate.nthread ++;
+  if (bstate.nthread < nthread) {
+    pthread_cond_wait(&bstate.barrier_cond, &bstate.barrier_mutex);
+  } else {
+    bstate.nthread = 0;
+    bstate.round++;
+    pthread_cond_broadcast(&bstate.barrier_cond);
+  }
+  pthread_mutex_unlock(&bstate.barrier_mutex);
 }
 
 static void *
