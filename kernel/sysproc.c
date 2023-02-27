@@ -67,6 +67,7 @@ sys_sleep(void)
       release(&tickslock);
       return -1;
     }
+    printf("ticks0: %d, ticks: %d\n", ticks0, ticks);
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
