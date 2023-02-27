@@ -62,7 +62,7 @@ void
 acquire(struct spinlock *lk)
 {
   push_off(); // disable interrupts to avoid deadlock.
-  if(holding(lk))
+  if(holding(lk))    //已经获取了锁
     panic("acquire");
 
 #ifdef LAB_LOCK
@@ -88,14 +88,14 @@ acquire(struct spinlock *lk)
   __sync_synchronize();
 
   // Record info about lock acquisition for holding() and debugging.
-  lk->cpu = mycpu();
+  lk->cpu = mycpu();   //_sync_synchronize()保证 在获取锁之后访问临界区
 }
 
 // Release the lock.
 void
 release(struct spinlock *lk)
-{
-  if(!holding(lk))
+{ // 如果进程A在cpu0上获取了锁，然后放弃cpu, 在cpu2上调度，release能成功吗
+  if(!holding(lk))   // 没有获得锁
     panic("release");
 
   lk->cpu = 0;
