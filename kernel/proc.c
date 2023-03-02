@@ -37,6 +37,9 @@ procinit(void)
       char *pa = kalloc();
       if(pa == 0)
         panic("kalloc");
+        // map kernel stacks beneath the trampoline,
+        // each surrounded by invalid guard pages.
+        // #define KSTACK(p) (TRAMPOLINE - ((p)+1)* 2*PGSIZE)
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
       p->kstack = va;
@@ -568,6 +571,8 @@ sleep(void *chan, struct spinlock *lk)
     release(lk);
   }
 
+  // sleep 在放弃cpu之前 解除tickslock,  这样其他中断能够获取 tickslock ticks++
+  // 并且唤醒 p->chan = chan(&ticks) 的进程
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
@@ -578,14 +583,14 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = 0;
 
   // Reacquire original lock.
-  if(lk != &p->lock){
-    release(&p->lock);
-    acquire(lk);
+  if(lk != &p->lock){  // 
+    release(&p->lock); 
+    acquire(lk);  // 获取时钟的锁, 这样在 sys_sleep中读取ticks
   }
 }
 
 // Wake up all processes sleeping on chan.
-// Must be called without any p->lock.
+// Must be called without any p->lock.  // 这里要获取p->lock
 void
 wakeup(void *chan)
 {

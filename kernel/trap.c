@@ -163,8 +163,8 @@ void
 clockintr()
 {
   acquire(&tickslock);
-  ticks++;
-  wakeup(&ticks);
+  ticks++;          // 每次有时钟中断，ticks++之后，
+  wakeup(&ticks);   // 尝试去唤醒因为ticks而中断的进程 
   release(&tickslock);
 }
 

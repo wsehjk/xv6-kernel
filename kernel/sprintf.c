@@ -24,15 +24,17 @@ sprintint(char *s, int xx, int base, int sign)
   char buf[16];
   int i, n;
   uint x;
-
+  // sign为1表示为符号数
+  // xx < 0 为真，sign为1
+  // xx < 0 为假，sign为0, 表示xx非负
   if(sign && (sign = xx < 0))
-    x = -xx;
+    x = -xx;  // xx是个负数 x为相反数
   else
     x = xx;
 
   i = 0;
   do {
-    buf[i++] = digits[x % base];
+    buf[i++] = digits[x % base]; // static char digits[] = "0123456789abcdef";
   } while((x /= base) != 0);
 
   if(sign)
@@ -61,7 +63,7 @@ snprintf(char *buf, int sz, char *fmt, ...)
       off += sputc(buf+off, c);
       continue;
     }
-    c = fmt[++i] & 0xff;
+    c = fmt[++i] & 0xff;  // 读取%之后一个元素
     if(c == 0)
       break;
     switch(c){
@@ -83,7 +85,7 @@ snprintf(char *buf, int sz, char *fmt, ...)
     default:
       // Print unknown % sequence to draw attention.
       off += sputc(buf+off, '%');
-      off += sputc(buf+off, c);
+      off += sputc(buf+off, c);  // %t之类的未知占位符
       break;
     }
   }

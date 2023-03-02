@@ -115,7 +115,7 @@ void            swtch(struct context*, struct context*);
 // spinlock.c
 void            acquire(struct spinlock*);
 int             holding(struct spinlock*);
-void            initlock(struct spinlock*, char*);
+void            initlock(struct spinlock*, char*, ...);
 void            release(struct spinlock*);
 void            push_off(void);
 void            pop_off(void);
@@ -200,6 +200,7 @@ void            statsinc(void);
 
 // sprintf.c
 int             snprintf(char*, int, char*, ...);
+
 
 #ifdef LAB_NET
 // pci.c

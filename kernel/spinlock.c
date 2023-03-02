@@ -1,5 +1,5 @@
 // Mutual exclusion spin locks.
-
+#include <stdarg.h>
 #include "types.h"
 #include "param.h"
 #include "memlayout.h"
@@ -44,11 +44,11 @@ findslot(struct spinlock *lk) {
 #endif
 
 void
-initlock(struct spinlock *lk, char *name)
+initlock(struct spinlock *lk, char *name, ...)
 {
-  lk->name = name;
   lk->locked = 0;
   lk->cpu = 0;
+  lk->name = name;
 #ifdef LAB_LOCK
   lk->nts = 0;
   lk->n = 0;
@@ -137,11 +137,11 @@ holding(struct spinlock *lk)
 void
 push_off(void)
 {
-  int old = intr_get();
+  int old = intr_get();  // 之前是否中断
 
   intr_off();
   if(mycpu()->noff == 0)
-    mycpu()->intena = old;
+    mycpu()->intena = old;  // 记录第一次push_off之前 cpu中断状态
   mycpu()->noff += 1;
 }
 
@@ -149,13 +149,13 @@ void
 pop_off(void)
 {
   struct cpu *c = mycpu();
-  if(intr_get())
+  if(intr_get()) // 当前是可中断的
     panic("pop_off - interruptible");
   if(c->noff < 1)
     panic("pop_off");
   c->noff -= 1;
-  if(c->noff == 0 && c->intena)
-    intr_on();
+  if(c->noff == 0 && c->intena) // 此次pop_off对应第一次push_off，在第一次push_off之前，cpu处于开中断
+    intr_on();    // 则开中断
 }
 
 #ifdef LAB_LOCK
