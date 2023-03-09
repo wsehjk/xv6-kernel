@@ -586,7 +586,7 @@ sleep(void *chan, struct spinlock *lk)
   if(lk != &p->lock){  // 
     release(&p->lock); 
     acquire(lk);  // 获取时钟的锁, 这样在 sys_sleep中读取ticks
-  }
+  }   // 重新获取在调用sleep之前持有的锁
 }
 
 // Wake up all processes sleeping on chan.
