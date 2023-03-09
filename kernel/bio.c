@@ -24,7 +24,7 @@
 #include "buf.h"
 
 #define NBUCKET 13 
-#define hash(id)  id%NBUCKET
+#define hash(id)  (id)%NBUCKET   // 注意id 加括号
 struct hashbucket{
   struct spinlock lock;  // 保护bucket 中的buf信息
   struct buf head;  // 每个桶的头结点
@@ -41,8 +41,8 @@ binit(void)
   struct buf *b;
   char lockname[30];
   for(int i = 0; i < NBUCKET; ++i) {
-    snprintf(lockname, 30, "bcache.bucket%d", i);
-    initlock(&bcache.bucket[i].lock, lockname);  // 初始化每个锁
+    snprintf(lockname, sizeof(lockname), "bcache.bucket%d", i);
+    initlock(&bcache.bucket[i].lock, lockname);   // 初始化每个锁
     bcache.bucket[i].head.next = &bcache.bucket[i].head;
     bcache.bucket[i].head.prev = &bcache.bucket[i].head;
   }
@@ -51,7 +51,7 @@ binit(void)
     b = &bcache.buf[i];
     b->next = bcache.bucket[0].head.next;
     b->prev = &bcache.bucket[0].head; 
-    initsleeplock(&bcache.buf[i].lock, "buflock");
+    initsleeplock(&bcache.buf[i].lock, "buffer");
     bcache.bucket[0].head.next->prev = b;
     bcache.bucket[0].head.next = b;
   }
@@ -83,7 +83,7 @@ bget(uint dev, uint blockno)
       acquiresleep(&b->lock);  // 获取buf的锁
       return b;
     }
-    if (b->refcnt == 0 && b->atime < cmp_tick) {  // 同时查找可能的替换block
+    if (b->refcnt == 0 && b->atime <= cmp_tick) {  // 同时查找可能的替换block
       cmp_tick = b->atime;
       t = b;
     }
@@ -92,11 +92,12 @@ bget(uint dev, uint blockno)
   // not cached
   // 查找到第一个存在refcnt为0的散列表
   // 持有bache.bucket[id].lock
-  if (t) { // 在相同的bucket中找到了 可替换bucket
+  if (t) { // 在相同的bucket中找到了 可替换的buffer 
     t->blockno = blockno;
     t->dev = dev;
     t->refcnt = 1;
-    t->valid = 0;
+    t->valid = 0;  // 设置metadata 
+
     release(&bcache.bucket[id].lock);
     acquiresleep(&t->lock);
     return t;
@@ -105,19 +106,19 @@ bget(uint dev, uint blockno)
   for (int targetid = hash(id+1); targetid != id; targetid = hash(targetid+1)) {
     b = 0;
     cmp_tick = cur_tick;
-    acquire(&bcache.bucket[targetid].lock);
+    acquire(&bcache.bucket[targetid].lock);    // 在另一个bucket中寻找
     for (t = bcache.bucket[targetid].head.next; t != &bcache.bucket[targetid].head; t = t->next) {
-      if (t->refcnt == 0 && t->atime < cmp_tick) {
+      if (t->refcnt == 0 && t->atime <= cmp_tick) {
         cmp_tick = t->atime;
         b = t;
       }
     } 
 
-    if (b) { // 在另一个bucket中找到了 可替换bucket
+    if (b) { // 在另一个bucket中找到了 可替换的buffer
       b->blockno = blockno;
       b->dev = dev;
       b->refcnt = 1;
-      b->valid = 0;
+      b->valid = 0;   // 设置信息
 
       b->next->prev = b->prev;
       b->prev->next = b->next; // 前后节点连接
@@ -128,7 +129,7 @@ bget(uint dev, uint blockno)
       bcache.bucket[id].head.next = b;   // 将b加入bucket[id]中
 
       release(&bcache.bucket[targetid].lock);
-      release(&bcache.bucket[id].lock);
+      release(&bcache.bucket[id].lock); // 释放两个桶的锁
       acquiresleep(&b->lock);
       return b;
     }
@@ -142,7 +143,6 @@ bget(uint dev, uint blockno)
 struct buf*
 bread(uint dev, uint blockno)
 {
-  //printf("bread called\n");
   struct buf *b;
 
   b = bget(dev, blockno);
@@ -150,7 +150,6 @@ bread(uint dev, uint blockno)
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }
-  // printf("bread return\n");
   return b;
 }
 
