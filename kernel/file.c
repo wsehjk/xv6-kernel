@@ -73,8 +73,8 @@ fileclose(struct file *f)
   f->type = FD_NONE;
   release(&ftable.lock);
 
-  if(ff.type == FD_PIPE){
-    pipeclose(ff.pipe, ff.writable);
+  if(ff.type == FD_PIPE){ // ff.writable为1关闭write,
+    pipeclose(ff.pipe, ff.writable); // 关闭内存中的pipe
   } else if(ff.type == FD_INODE || ff.type == FD_DEVICE){
     begin_op();
     iput(ff.ip);
@@ -98,7 +98,7 @@ filestat(struct file *f, uint64 addr)
       return -1;
     return 0;
   }
-  return -1;
+  return -1; // f->type是pipe，
 }
 
 // Read from file f.

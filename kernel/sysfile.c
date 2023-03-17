@@ -26,12 +26,13 @@ argfd(int n, int *pfd, struct file **pf)
 
   if(argint(n, &fd) < 0)
     return -1;
+  // 传入的文件描述符为负数或者超过进程可用的最大文件数量，或者相应的ofile[fd] 为0
   if(fd < 0 || fd >= NOFILE || (f=myproc()->ofile[fd]) == 0)
     return -1;
-  if(pfd)
+  if(pfd) // 调用者想要获得fd
     *pfd = fd;
-  if(pf)
-    *pf = f;
+  if(pf)  // 想要获得 struct file *
+    *pf = f; 
   return 0;
 }
 
@@ -42,7 +43,7 @@ fdalloc(struct file *f)
 {
   int fd;
   struct proc *p = myproc();
-
+  // 为打开的文件分配一个属于进程的文件描述符
   for(fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd] == 0){
       p->ofile[fd] = f;
@@ -60,7 +61,7 @@ sys_dup(void)
 
   if(argfd(0, 0, &f) < 0)
     return -1;
-  if((fd=fdalloc(f)) < 0)
+  if((fd=fdalloc(f)) < 0)  // 不同的文件描述符指向同一个file 
     return -1;
   filedup(f);
   return fd;
@@ -132,7 +133,7 @@ sys_link(void)
   }
 
   ilock(ip);
-  if(ip->type == T_DIR){
+  if(ip->type == T_DIR){  // 原本应该是文件
     iunlockput(ip);
     end_op();
     return -1;
@@ -204,7 +205,8 @@ sys_unlink(void)
   if(namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
     goto bad;
 
-  if((ip = dirlookup(dp, name, &off)) == 0)
+  // dirlookup返回0，说明目录下没有找到name这个entry
+  if((ip = dirlookup(dp, name, &off)) == 0) 
     goto bad;
   ilock(ip);
 
@@ -218,8 +220,8 @@ sys_unlink(void)
   memset(&de, 0, sizeof(de));
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
-  if(ip->type == T_DIR){
-    dp->nlink--;
+  if(ip->type == T_DIR){ 
+    dp->nlink--;    // ?????????
     iupdate(dp);
   }
   iunlockput(dp);
@@ -238,6 +240,7 @@ bad:
   return -1;
 }
 
+// create 由sys_open, sys_mkdir, sys_mknod调用
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
@@ -249,7 +252,7 @@ create(char *path, short type, short major, short minor)
 
   ilock(dp);
 
-  if((ip = dirlookup(dp, name, 0)) != 0){
+  if((ip = dirlookup(dp, name, 0)) != 0){ // name 已经存在
     iunlockput(dp);
     ilock(ip);
     if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
@@ -258,7 +261,7 @@ create(char *path, short type, short major, short minor)
     return 0;
   }
 
-  if((ip = ialloc(dp->dev, type)) == 0)
+  if((ip = ialloc(dp->dev, type)) == 0)  // ialloc 不会返回0
     panic("create: ialloc");
 
   ilock(ip);
@@ -266,16 +269,16 @@ create(char *path, short type, short major, short minor)
   ip->minor = minor;
   ip->nlink = 1;
   iupdate(ip);
-
+  // sys_mkdir 调用 
   if(type == T_DIR){  // Create . and .. entries.
     dp->nlink++;  // for ".."
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.
     if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
-      panic("create dots");
+      panic("create: dots");
   }
 
-  if(dirlink(dp, name, ip->inum) < 0)
+  if(dirlink(dp, name, ip->inum) < 0) // 父亲目录下创建新的entry
     panic("create: dirlink");
 
   iunlockput(dp);
@@ -298,13 +301,13 @@ sys_open(void)
   begin_op();
 
   if(omode & O_CREATE){
-    ip = create(path, T_FILE, 0, 0);
+    ip = create(path, T_FILE, 0, 0); // create 返回一个locked inode
     if(ip == 0){
       end_op();
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){
+    if((ip = namei(path)) == 0){  // create 返回一个 unlocked inode
       end_op();
       return -1;
     }
@@ -323,7 +326,7 @@ sys_open(void)
   }
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
-    if(f)
+    if(f)     // 错误处理
       fileclose(f);
     iunlockput(ip);
     end_op();
@@ -337,7 +340,7 @@ sys_open(void)
     f->type = FD_INODE;
     f->off = 0;
   }
-  f->ip = ip;
+  f->ip = ip;    // ****************
   f->readable = !(omode & O_WRONLY);
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
 
@@ -464,7 +467,7 @@ sys_pipe(void)
 
   if(argaddr(0, &fdarray) < 0)
     return -1;
-  if(pipealloc(&rf, &wf) < 0)
+  if(pipealloc(&rf, &wf) < 0)  // 分配两个文件 file*, 并且初始化
     return -1;
   fd0 = -1;
   if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){

@@ -25,7 +25,7 @@ struct superblock {
 #define FSMAGIC 0x10203040
 
 #define NDIRECT 12
-#define NINDIRECT (BSIZE / sizeof(uint))
+#define NINDIRECT (BSIZE / sizeof(uint)) // 间接索引data块的数量
 #define MAXFILE (NDIRECT + NINDIRECT)
 
 // On-disk inode structure
@@ -46,6 +46,7 @@ struct dinode {
 
 // Bitmap bits per block
 #define BPB           (BSIZE*8)
+// 一个block有1024字节，有1024*8->4096个bit，每个bit表示某个块是否分配
 
 // Block of free map containing bit for block b
 #define BBLOCK(b, sb) ((b)/BPB + sb.bmapstart)
@@ -54,7 +55,7 @@ struct dinode {
 #define DIRSIZ 14
 
 struct dirent {
-  ushort inum;
+  ushort inum;   // inode
   char name[DIRSIZ];
 };
 
