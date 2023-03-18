@@ -486,5 +486,10 @@ sys_pipe(void)
 }
 
 uint64 sys_symlink(void) {
+  char path[MAXPATH];
+  char target[MAXPATH];
+  if (argstr(0,target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0) 
+    return -1;
+  
   return 0;
 }
