@@ -171,7 +171,6 @@ main(int argc, char *argv[])
   winode(rootino, &din);
 
   balloc(freeblock);
-
   exit(0);
 }
 

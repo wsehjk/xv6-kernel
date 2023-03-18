@@ -460,19 +460,25 @@ itrunc(struct inode *ip)
   if(ip->addrs[NDIRECT+1]){
     bp = bread(ip->dev, ip->addrs[NDIRECT+1]);     // 读入二级索引地址块
     a = (uint*)bp->data;
+
     for(j = 0; j < NINDIRECT; j++) {
       if(a[j]) {
         struct buf* nextbp = bread(ip->dev, a[j]);    // 读入下一级索引地址块
         uint* p = (uint*)nextbp->data;
-        for(int i = 0; i < NINDIRECT; i++) {
-          if (p[i])
+
+        for(i = 0; i < NINDIRECT; i++) {
+          if (p[i]) {
             bfree(ip->dev, p[i]); // 释放数据块
+            p[i] = 0;
+          }
         }
+
         brelse(nextbp);
         bfree(ip->dev, a[j]);  // 释放索引块
         a[j] = 0;
       }
     }
+
     brelse(bp); 
     bfree(ip->dev, ip->addrs[NDIRECT+1]);  // 释放二级索引块
     ip->addrs[NDIRECT+1] = 0;
