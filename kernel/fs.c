@@ -68,7 +68,7 @@ balloc(uint dev)
   int b, bi, m;
   struct buf *bp;
 
-  bp = 0; // sb.size表示整个文件的block数量
+  bp = 0; // sb.size表示整个磁盘的block数量
   for(b = 0; b < sb.size; b += BPB){
     bp = bread(dev, BBLOCK(b, sb));
   // 读取bitmap block, block只会被cache在一个buffer中，且只有一个进程同时使用buffer
@@ -89,13 +89,13 @@ balloc(uint dev)
 
 // Free a disk block.
 static void
-bfree(int dev, uint b)
+bfree(int dev, uint blockno)
 {
   struct buf *bp;
   int bi, m;
 
-  bp = bread(dev, BBLOCK(b, sb));
-  bi = b % BPB;     // 具体的bit位
+  bp = bread(dev, BBLOCK(blockno, sb));
+  bi = blockno % BPB;     // 具体的bit位
   m = 1 << (bi % 8); // 8个bit为一组，查看组中位置
   if((bp->data[bi/8] & m) == 0) //该字节的第m位为0，已经是空闲块了
     panic("freeing free block");
@@ -206,7 +206,7 @@ ialloc(uint dev, short type)
     bp = bread(dev, IBLOCK(inum, sb)); // 读取 inum号inode 所在的block
     dip = (struct dinode*)bp->data + inum%IPB; // 获取inum号inode在block中位置
     if(dip->type == 0){       // a free inode
-      memset(dip, 0, sizeof(*dip));
+      memset(dip, 0, sizeof(*dip));   // 注意 sizeof(*dip), 不是sizeof(dip)
       dip->type = type;
       log_write(bp);   // mark it allocated on the disk
       brelse(bp);
@@ -219,8 +219,11 @@ ialloc(uint dev, short type)
 
 // Copy a modified in-memory inode to disk.
 // Must be called after every change to an ip->xxx field
+// ip->data, ip->size, ip->type ip->nlinks
 // that lives on disk, since i-node cache is write-through.
+// 写直达法，
 // Caller must hold ip->lock.
+
 void
 iupdate(struct inode *ip)
 {
@@ -235,7 +238,7 @@ iupdate(struct inode *ip)
   dip->nlink = ip->nlink;
   dip->size = ip->size; // 更新metadata以及data block地址信息
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
-  log_write(bp);
+  log_write(bp);  // 都是先log_write 再release buf
   brelse(bp);
 }
 
@@ -243,6 +246,7 @@ iupdate(struct inode *ip)
 // and return the in-memory copy. Does not lock
 // the inode and does not read it from disk. 
 // ilock 负责读取 on-disk inode
+// iget不加锁，但是设置 inode->ref 这样inode不会被free ............
 static struct inode*
 iget(uint dev, uint inum)
 {
@@ -296,7 +300,7 @@ ilock(struct inode *ip)
   struct buf *bp;
   struct dinode *dip;
 
-  if(ip == 0 || ip->ref < 1)
+  if(ip == 0 || ip->ref < 1)  // 读取ip->ref 为什么不获取 icache.lock
     panic("ilock");
 
   acquiresleep(&ip->lock);
@@ -388,7 +392,7 @@ bmap(struct inode *ip, uint bn)
   uint addr, *a;
   struct buf *bp;
 
-  if(bn < NDIRECT){  // 是直接隐射数据块
+  if(bn < NDIRECT){  // 是直接映射数据块
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
     return addr;
@@ -403,7 +407,7 @@ bmap(struct inode *ip, uint bn)
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev);
-      log_write(bp); // 间接索引块信息改变  为什么不调用iupdate
+      log_write(bp); // 间接索引块信息改变  为什么不调用iupdate, writei 调用bmap, 之后调用iupdate 
     }
     brelse(bp);
     return addr;
@@ -416,6 +420,7 @@ bmap(struct inode *ip, uint bn)
 
 // Truncate inode (discard contents).
 // Caller must hold ip->lock.
+// 将每个数据块以及索引块的bitmap 为置为0
 void
 itrunc(struct inode *ip)
 {
@@ -423,19 +428,19 @@ itrunc(struct inode *ip)
   struct buf *bp;
   uint *a;
 
-  for(i = 0; i < NDIRECT; i++){ // 直接索引的块
-    if(ip->addrs[i]){
+  for(i = 0; i < NDIRECT; i++){ // 直接索引的数据块
+    if(ip->addrs[i]){   // 数据块
       bfree(ip->dev, ip->addrs[i]);
       ip->addrs[i] = 0;
     }
   }
 
-  if(ip->addrs[NDIRECT]){  
+  if(ip->addrs[NDIRECT]){ // 文件存在一级间接索引块 
     bp = bread(ip->dev, ip->addrs[NDIRECT]); 
     a = (uint*)bp->data;
-    for(j = 0; j < NINDIRECT; j++){
-      if(a[j])
-        bfree(ip->dev, a[j]);     // 回收每个间接索引块
+    for(j = 0; j < NINDIRECT; j++){  
+      if(a[j])     // 数据存在
+        bfree(ip->dev, a[j]);     // 回收每个间接索引数据块
     }
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);   // 同样要回收间接索引地址块
@@ -443,7 +448,7 @@ itrunc(struct inode *ip)
   }
 
   ip->size = 0; // file size 置为0
-  iupdate(ip);  // 
+  iupdate(ip);  // inode->size, inode->data 改变 
 }
 
 // Copy stat information from inode.
@@ -470,7 +475,7 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 
   if(off > ip->size || off + n < off)
     return 0;
-  if(off + n > ip->size)
+  if(off + n > ip->size)  // off <= ip->size, off + n >= off
     n = ip->size - off;
 
   for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
@@ -491,15 +496,16 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 // Caller must hold ip->lock.
 // If user_src==1, then src is a user virtual address;
 // otherwise, src is a kernel address.
+// 返回写入的字节数,即n
 int
 writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
   uint tot, m;
   struct buf *bp;
 
-  if(off > ip->size || off + n < off)
+  if(off > ip->size || off + n < off)  // off + n >= off, n 过大溢出而回卷
     return -1;
-  if(off + n > MAXFILE*BSIZE)
+  if(off + n > MAXFILE*BSIZE)  // off + n <= MAXFILE*BSIZE 
     return -1;
 
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
@@ -529,13 +535,18 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 // Directories
 
 int
-namecmp(const char *s, const char *t)
+namecmp(const char *s, const char *t)     // 比较目录名是否相同
 {
   return strncmp(s, t, DIRSIZ);
 }
 
 // Look for a directory entry in a directory.
 // If found, set *poff to byte offset of entry.
+// caller hold dp->lock
+// dp是要查找的目录，name是在目录下找的文件名
+// 假如name = '.', 即在当前目录下查找当前目录
+// 查找的得到的inum即为 dp->inum
+// iget 不能加锁，否则会死锁
 struct inode*
 dirlookup(struct inode *dp, char *name, uint *poff)
 {
@@ -548,7 +559,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
   for(off = 0; off < dp->size; off += sizeof(de)){
     if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de)) // 读取相应偏移位置的dirent
       panic("dirlookup read");
-    if(de.inum == 0)
+    if(de.inum == 0)  // 空的entry
       continue;
     if(namecmp(name, de.name) == 0){
       // entry matches path element
@@ -641,36 +652,38 @@ namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
 
-  if(*path == '/')
+  if(*path == '/')  // 绝对路径
     ip = iget(ROOTDEV, ROOTINO);
   else
-    ip = idup(myproc()->cwd); // 从当前目录出发
+    ip = idup(myproc()->cwd); // 从当前目录出发，相对路径
   // ip指向当前目录inode，name为当前目录下dirent entry
+  // 每次迭代
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
-    if(ip->type != T_DIR){ // 当前不为目录文件
+    if(ip->type != T_DIR){ // 当前不为目录文件, 并且不是最后
       iunlockput(ip);
       return 0;
     }
-    if(nameiparent && *path == '\0'){
+    if(nameiparent && *path == '\0'){   // *path 为 '\0' name 为最后一级， ip指向parent directory
       // Stop one level early.
       iunlock(ip);
       return ip;
     }
-    if((next = dirlookup(ip, name, 0)) == 0){
+    if((next = dirlookup(ip, name, 0)) == 0){  // 返回由iget得到的inode
       iunlockput(ip);
       return 0;
     }
     iunlockput(ip); // 先释放当前inode，
     ip = next;
   }
-  if(nameiparent){
+  if(nameiparent){   // ?????
     iput(ip);
     return 0;
   }
   return ip;
 }
 
+// /a/b/c
 struct inode*
 namei(char *path)
 {

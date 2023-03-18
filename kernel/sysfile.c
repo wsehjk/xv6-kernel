@@ -53,17 +53,18 @@ fdalloc(struct file *f)
   return -1;
 }
 
+// 结果：进程文件表中有两个文件描述符指向相同 file entry
 uint64
 sys_dup(void)
 {
   struct file *f;
   int fd;
 
-  if(argfd(0, 0, &f) < 0)
+  if(argfd(0, 0, &f) < 0)  // 获得传入的fd对应的file*
     return -1;
   if((fd=fdalloc(f)) < 0)  // 不同的文件描述符指向同一个file 
     return -1;
-  filedup(f);
+  filedup(f);  // 增加ref count
   return fd;
 }
 
@@ -98,7 +99,7 @@ sys_close(void)
   int fd;
   struct file *f;
 
-  if(argfd(0, &fd, &f) < 0)
+  if(argfd(0, &fd, &f) < 0)  // 获得fd 以及 file*
     return -1;
   myproc()->ofile[fd] = 0;
   fileclose(f);
@@ -117,6 +118,7 @@ sys_fstat(void)
 }
 
 // Create the path new as a link to the same inode as old.
+// new --> old
 uint64
 sys_link(void)
 {
@@ -133,7 +135,7 @@ sys_link(void)
   }
 
   ilock(ip);
-  if(ip->type == T_DIR){  // 原本应该是文件
+  if(ip->type == T_DIR){  //  ??????? 原本应该是文件
     iunlockput(ip);
     end_op();
     return -1;
@@ -141,8 +143,8 @@ sys_link(void)
 
   ip->nlink++;
   iupdate(ip);
-  iunlock(ip);
-
+  iunlock(ip);  // 因为不需要修改 ip->link, ip->size, ip->type, ip->data, 放弃锁
+  // 需要查看ip->dev,ip->name inode保存在内存中，没有调用iput(ip)
   if((dp = nameiparent(new, name)) == 0)
     goto bad;
   ilock(dp);
@@ -176,12 +178,15 @@ isdirempty(struct inode *dp)
   for(off=2*sizeof(de); off<dp->size; off+=sizeof(de)){
     if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("isdirempty: readi");
-    if(de.inum != 0)
+    if(de.inum != 0)  // 存在一个非空的 dirent
       return 0;
   }
   return 1;
 }
 
+// 删除目录下的一个entry, 已经对应的inode->link --
+// inum + name 
+// rm.c
 uint64
 sys_unlink(void)
 {
@@ -208,11 +213,11 @@ sys_unlink(void)
   // dirlookup返回0，说明目录下没有找到name这个entry
   if((ip = dirlookup(dp, name, &off)) == 0) 
     goto bad;
-  ilock(ip);
+  ilock(ip);  // name != '.', 不会死锁
 
   if(ip->nlink < 1)
     panic("unlink: nlink < 1");
-  if(ip->type == T_DIR && !isdirempty(ip)){
+  if(ip->type == T_DIR && !isdirempty(ip)){   // 想删除一个非空目录
     iunlockput(ip);
     goto bad;
   }
@@ -221,13 +226,13 @@ sys_unlink(void)
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
   if(ip->type == T_DIR){ 
-    dp->nlink--;    // ?????????
+    dp->nlink--;    // ip是孩子目录，有父亲目录的entry， '..' 
     iupdate(dp);
   }
   iunlockput(dp);
 
   ip->nlink--;
-  iupdate(ip);
+  iupdate(ip);  // 及时更新， write through
   iunlockput(ip);
 
   end_op();
@@ -253,7 +258,7 @@ create(char *path, short type, short major, short minor)
   ilock(dp);
 
   if((ip = dirlookup(dp, name, 0)) != 0){ // name 已经存在
-    iunlockput(dp);
+    iunlockput(dp);  // 先释放parent inode, 再获取 child inode
     ilock(ip);
     if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
       return ip;
@@ -261,6 +266,7 @@ create(char *path, short type, short major, short minor)
     return 0;
   }
 
+  // 分配一个Inode
   if((ip = ialloc(dp->dev, type)) == 0)  // ialloc 不会返回0
     panic("create: ialloc");
 
@@ -270,7 +276,7 @@ create(char *path, short type, short major, short minor)
   ip->nlink = 1;
   iupdate(ip);
   // sys_mkdir 调用 
-  if(type == T_DIR){  // Create . and .. entries.
+  if(type == T_DIR){  // Create . and .. entries.// 创建一个目录，初始化 '.' 以及 '..'entry
     dp->nlink++;  // for ".."
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.
@@ -300,18 +306,18 @@ sys_open(void)
 
   begin_op();
 
-  if(omode & O_CREATE){
+  if(omode & O_CREATE){  // 需要创建
     ip = create(path, T_FILE, 0, 0); // create 返回一个locked inode
     if(ip == 0){
       end_op();
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){  // create 返回一个 unlocked inode
+    if((ip = namei(path)) == 0){  // namei 返回一个 unlocked inode
       end_op();
       return -1;
     }
-    ilock(ip);
+    ilock(ip);    // 没有以 只读的方式 打开文件
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
@@ -324,11 +330,11 @@ sys_open(void)
     end_op();
     return -1;
   }
-
+  // ip 表示一个创建的，或者已经存在的文件
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)     // 错误处理
       fileclose(f);
-    iunlockput(ip);
+    iunlockput(ip);  // 对于创建的文件会调用 ????
     end_op();
     return -1;
   }
@@ -391,7 +397,7 @@ sys_mknod(void)
 }
 
 uint64
-sys_chdir(void)
+sys_chdir(void)  // 切换进程的当前目录
 {
   char path[MAXPATH];
   struct inode *ip;
@@ -415,13 +421,15 @@ sys_chdir(void)
   return 0;
 }
 
+// char* args[32] = {"echo", "hello, world", "0"}
+// exec("echo", args)
 uint64
 sys_exec(void)
 {
   char path[MAXPATH], *argv[MAXARG];
   int i;
   uint64 uargv, uarg;
-
+  // uargv 即为参数数组的起始地址，数组元素是 [char *
   if(argstr(0, path, MAXPATH) < 0 || argaddr(1, &uargv) < 0){
     return -1;
   }
@@ -430,19 +438,20 @@ sys_exec(void)
     if(i >= NELEM(argv)){
       goto bad;
     }
-    if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
+    if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){//依次获取每个参数地址
       goto bad;
     }
-    if(uarg == 0){
+    if(uarg == 0){ // 终止符
       argv[i] = 0;
       break;
     }
-    argv[i] = kalloc();
+    argv[i] = kalloc();    // 
     if(argv[i] == 0)
-      goto bad;
+      goto bad;  // 获取相应参数 
     if(fetchstr(uarg, argv[i], PGSIZE) < 0)
       goto bad;
-  }
+  } 
+  // 将参数从 user space 复制到 kernel space 
 
   int ret = exec(path, argv);
 

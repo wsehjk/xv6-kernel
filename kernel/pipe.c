@@ -36,7 +36,7 @@ pipealloc(struct file **f0, struct file **f1)
   pi->nread = 0;
   initlock(&pi->lock, "pipe");
 
-  (*f0)->type = FD_PIPE;
+  (*f0)->type = FD_PIPE;   // (*f0)->ref 在filealloc中已经置为1
   (*f0)->readable = 1;
   (*f0)->writable = 0;
   (*f0)->pipe = pi;

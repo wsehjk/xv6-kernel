@@ -36,7 +36,7 @@ struct dinode {
   short nlink;          // Number of links to inode in file system
   uint size;            // Size of file (bytes)
   uint addrs[NDIRECT+1];   // Data block addresses
-};
+}; // 64个字节
 
 // Inodes per block.
 #define IPB           (BSIZE / sizeof(struct dinode))

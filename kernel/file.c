@@ -26,6 +26,7 @@ fileinit(void)
 }
 
 // Allocate a file structure.
+// 在系统文件表中分配一个entry
 struct file*
 filealloc(void)
 {
@@ -45,7 +46,7 @@ filealloc(void)
 
 // Increment ref count for file f.
 struct file*
-filedup(struct file *f)
+filedup(struct file *f)  // sys_dup, fork
 {
   acquire(&ftable.lock);
   if(f->ref < 1)
