@@ -211,7 +211,7 @@ sys_unlink(void)
   if(ip->nlink < 1)
     panic("unlink: nlink < 1");
   if(ip->type == T_DIR && !isdirempty(ip)){
-    iunlockput(ip);
+    iunlockput(ip); // isdirempty(ip) 返回0
     goto bad;
   }
 
@@ -219,7 +219,7 @@ sys_unlink(void)
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
   if(ip->type == T_DIR){
-    dp->nlink--;
+    dp->nlink--;     // 删除子目录中的 ".."
     iupdate(dp);
   }
   iunlockput(dp);
@@ -297,7 +297,7 @@ sys_open(void)
 
   begin_op();
 
-  if(omode & O_CREATE){
+  if(omode & O_CREATE){ //  存在 O_CREATE 标记
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
       end_op();
@@ -322,6 +322,31 @@ sys_open(void)
     return -1;
   }
 
+  int loop = 10;
+  while (ip->type == T_SYMLINK && (omode & O_NOFOLLOW) == 0 && loop) {//打开的是符号文件，并且需要follow到target
+    memset(path, 0, MAXPATH);
+    if (readi(ip, 0, (uint64)path, 0, MAXPATH) < 0) {
+      end_op();
+      return -1;
+    }
+    iunlockput(ip);
+    if ((ip = namei(path)) == 0) {  // target不存在
+      end_op();
+      return -1;
+    }
+    ilock(ip);
+    if(ip->type == T_DIR){ 
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+    loop --;
+  }
+  if (ip->type == T_SYMLINK && (omode & O_NOFOLLOW) == 0) {//固定次数循环之后，仍然得到符号文件
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
       fileclose(f);
@@ -488,8 +513,20 @@ sys_pipe(void)
 uint64 sys_symlink(void) {
   char path[MAXPATH];
   char target[MAXPATH];
-  if (argstr(0,target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0) 
+  struct inode* ip;
+  begin_op();
+  if (argstr(0,target, MAXPATH) < 0 
+      || argstr(1, path, MAXPATH) < 0
+      || (ip = create(path, T_SYMLINK, 0, 0)) == 0) {
+    end_op();
     return -1;
-  
+  }
+  if (writei(ip, 0, (uint64)target, 0, sizeof(target)) != sizeof(target)) {
+    end_op();
+    iunlockput(ip);
+    return -1;
+  }
+  end_op();
+  iunlockput(ip);
   return 0;
 }
