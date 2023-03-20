@@ -33,3 +33,21 @@ usertests: OK (237.3s)
 == Test time == 
 time: OK 
 Score: 100/100
+
+== Test running bigfile == 
+$ make qemu-gdb
+running bigfile: OK (154.3s) 
+    (Old xv6.out.bigfile failure log removed)
+== Test running symlinktest == 
+$ make qemu-gdb
+(0.7s) 
+== Test   symlinktest: symlinks == 
+  symlinktest: symlinks: OK 
+== Test   symlinktest: concurrent symlinks == 
+  symlinktest: concurrent symlinks: OK 
+== Test usertests == 
+$ make qemu-gdb
+usertests: OK (242.6s) 
+== Test time == 
+time: OK 
+Score: 100/100

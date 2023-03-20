@@ -258,7 +258,7 @@ create(char *path, short type, short major, short minor)
     return 0;
   }
 
-  if((ip = ialloc(dp->dev, type)) == 0)
+  if((ip = ialloc(dp->dev, type)) == 0)  // 分配新的inode, 已经设置好 ip->inum, 
     panic("create: ialloc");
 
   ilock(ip);
@@ -275,7 +275,7 @@ create(char *path, short type, short major, short minor)
       panic("create dots");
   }
 
-  if(dirlink(dp, name, ip->inum) < 0)
+  if(dirlink(dp, name, ip->inum) < 0)  // 父亲目录下写入新的 entry
     panic("create: dirlink");
 
   iunlockput(dp);
@@ -335,19 +335,21 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
-    if(ip->type == T_DIR){ 
+    if(ip->type == T_DIR){   // 需要额外处理吗
       iunlockput(ip);
       end_op();
       return -1;
     }
     loop --;
   }
+
   if (ip->type == T_SYMLINK && (omode & O_NOFOLLOW) == 0) {//固定次数循环之后，仍然得到符号文件
     iunlockput(ip);
     end_op();
     return -1;
   }
-  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){ // 提供上层服务
     if(f)
       fileclose(f);
     iunlockput(ip);
@@ -510,6 +512,7 @@ sys_pipe(void)
   return 0;
 }
 
+// 符号连接：创建一个文件，类型为T_SYMLINK, 该文件内容为另一个文件路径 
 uint64 sys_symlink(void) {
   char path[MAXPATH];
   char target[MAXPATH];
@@ -517,11 +520,11 @@ uint64 sys_symlink(void) {
   begin_op();
   if (argstr(0,target, MAXPATH) < 0 
       || argstr(1, path, MAXPATH) < 0
-      || (ip = create(path, T_SYMLINK, 0, 0)) == 0) {
+      || (ip = create(path, T_SYMLINK, 0, 0)) == 0) {  // 创建一个新的文件，返回Locked inode
     end_op();
     return -1;
   }
-  if (writei(ip, 0, (uint64)target, 0, sizeof(target)) != sizeof(target)) {
+  if (writei(ip, 0, (uint64)target, 0, sizeof(target)) != sizeof(target)) {// 写入inode
     end_op();
     iunlockput(ip);
     return -1;
