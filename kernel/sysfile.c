@@ -512,11 +512,25 @@ uint64 sys_mmap(void) {
   argfd(4, &fd, &file);  
   argaddr(5, &offset);
 
-  // struct proc* proc = myproc();
+  // if file opend read_only, mmap should be mapped shared, else return -1;
+  if (file->writable == 0 && flags == MAP_SHARED) 
+    return -1;
+
+  struct proc* proc = myproc();
   struct VMA* vma = vma_alloc();
   if (vma == 0) 
     return -1;
-  return 0;
+
+  vma->file = filedup(file);  // 记录信息
+  vma->flags = flags;
+  vma->offset = offset;
+  vma->prot = prot;
+  // printf("original size is 0x%x\n", proc->sz);
+  vma->addr = proc->sz;
+  vma->length = length;
+  proc->sz += length;
+
+  return vma->addr;
 }
 
 // int munmap(char*, uint64 length);
