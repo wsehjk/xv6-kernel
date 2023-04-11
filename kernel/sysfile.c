@@ -484,3 +484,47 @@ sys_pipe(void)
   }
   return 0;
 }
+struct VMA* vma_alloc()
+{
+  struct proc* proc = myproc();
+  struct VMA* vma;
+  for(vma = proc->vma; vma != proc->vma + NVMA; vma ++) {
+    if (vma->addr == 0) 
+      return vma;
+  }
+  return 0;
+};
+
+// void *mmap(void *addr, uint64 length, uint64 prot, uint64 flags, int fd, uint64 offset);
+uint64 sys_mmap(void) {
+  uint64 addr;
+  uint64 length;
+  int prot, flags, fd;
+  uint64 offset;
+  struct file* file;
+  
+  argaddr(0, &addr);
+  if (addr != 0)   // assume addr is 0 
+    return -1;
+  argaddr(1, &length);
+  argint(2, &prot);
+  argint(3, &flags);
+  argfd(4, &fd, &file);  
+  argaddr(5, &offset);
+
+  // struct proc* proc = myproc();
+  struct VMA* vma = vma_alloc();
+  if (vma == 0) 
+    return -1;
+  return 0;
+}
+
+// int munmap(char*, uint64 length);
+uint64 sys_munmap(void) {
+  uint64 addr;
+  uint64 length;
+  argaddr(0, &addr);
+  argaddr(1, &length);
+
+  return -1;
+}
