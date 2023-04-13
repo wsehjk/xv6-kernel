@@ -506,39 +506,177 @@ uint64 sys_mmap(void) {
   argaddr(0, &addr);
   if (addr != 0)   // assume addr is 0 
     return -1;
+
   argaddr(1, &length);
+  if (length%PGSIZE)   // 假设划分的长度page aligned
+    return -1;
+
   argint(2, &prot);
   argint(3, &flags);
   argfd(4, &fd, &file);  
   argaddr(5, &offset);
 
-  // if file opend read_only, mmap should be mapped shared, else return -1;
-  if (file->writable == 0 && flags == MAP_SHARED) 
+  // if file opend read_only, 
+  if (file->writable == 0 && prot&PROT_WRITE && flags == MAP_SHARED) {
     return -1;
-
+  }
   struct proc* proc = myproc();
   struct VMA* vma = vma_alloc();
-  if (vma == 0) 
+  if (vma == 0)  {
     return -1;
+  }
 
   vma->file = filedup(file);  // 记录信息
   vma->flags = flags;
   vma->offset = offset;
   vma->prot = prot;
-  // printf("original size is 0x%x\n", proc->sz);
   vma->addr = proc->sz;
   vma->length = length;
   proc->sz += length;
-
   return vma->addr;
 }
 
-// int munmap(char*, uint64 length);
-uint64 sys_munmap(void) {
-  uint64 addr;
-  uint64 length;
-  argaddr(0, &addr);
-  argaddr(1, &length);
+struct VMA* findvma(uint64 va) {
+  struct proc *p = myproc();
+  struct VMA* vma;
+  for(vma = p->vma; vma < p->vma + NVMA; ++vma) {
+    if (vma->addr == 0) 
+      continue;
+    if (vma->addr <= va && va < vma->addr+vma->length) 
+      return vma;
+  }
+  return 0;
+}
 
-  return -1;
+// int munmap(char*, uint64 length);
+uint64 sys_munmap(void) {  // 注意改变vma->addr, vma->length, vma->offset
+
+  uint64 unmap_addr;
+  uint64 unmap_length;
+  argaddr(0, &unmap_addr);
+  argaddr(1, &unmap_length);
+  uint64 unmap_end = unmap_length + unmap_addr;
+  struct VMA* vma = findvma(unmap_addr);
+  if (vma == 0)
+    return -1;
+  
+  uint64 start_va = vma->addr;
+  uint64 tot_length = vma->length;
+  uint64 region_end = start_va + tot_length;
+  struct proc* p = myproc();
+
+  // unmap的区域要么在开始的连续区域，要么在结束的连续区域
+  if (start_va == unmap_addr) {
+    if (unmap_length > tot_length) 
+      return -1;
+  } else {
+    if (unmap_end != region_end)
+     return -1;
+  }
+  uint64 addr = unmap_addr;
+  if (vma->flags == MAP_SHARED) {
+    if (start_va == unmap_addr) {
+      while (unmap_addr != unmap_end) {
+        uint64 next;
+        uint n;
+        if (unmap_addr%PGSIZE) {  // 当前地址 不是page 对齐
+          next = PGROUNDUP(unmap_addr);
+        } else {
+          next = unmap_addr+PGSIZE;
+        }
+        if (next > unmap_end)
+          next = unmap_end;
+        n = next - unmap_addr;
+        uint64 pa = walkaddr(p->pagetable, unmap_addr);
+        if (pa) {
+          filewrite(vma->file, unmap_addr, n);
+        }
+        unmap_addr += n;
+      }
+    } else {
+      while (unmap_end != unmap_addr) {
+        uint64 next;
+        uint n;
+        if (unmap_end%PGSIZE) {
+          next = PGROUNDUP(unmap_end);
+        } else {
+          next = unmap_end - PGSIZE;
+        }
+        if (next < unmap_addr)
+          next = unmap_addr;
+        n = unmap_end - next;
+        uint64 pa = walkaddr(p->pagetable, next);
+        if (pa) {
+          filewrite(vma->file, next, n);
+        }
+        unmap_end -= n;
+      }  
+    }
+  }
+
+  unmap_addr = addr;
+  uvmunmap(p->pagetable, unmap_addr, unmap_length/PGSIZE, 1);
+
+  if (unmap_addr == start_va) {
+    start_va = unmap_addr + unmap_length;
+    vma->offset += ((unmap_length)/PGSIZE)*PGSIZE;
+  } else {
+    region_end = unmap_addr;
+  }
+  vma->addr = start_va;
+  vma->length = region_end - start_va;
+  if (vma->length == 0) {  // 整个区域都被unmap了
+    fileclose(vma->file);
+    vma->addr = 0;
+    memset(vma, 0, sizeof(*vma));
+  }
+  return 0;
+}
+
+/*
+#define PROT_READ       0x1
+#define PROT_WRITE      0x2
+#define PROT_EXEC       0x4
+*/
+int page_fault_handler(struct proc* p) {
+  uint64 ustack = PGROUNDDOWN(p->trapframe->sp);
+  uint64 fault_va = r_stval();
+  if (fault_va < ustack) {
+    printf("page_fault_handler: fault_va < ustatck\n");
+    return -1;
+  }  // stack overflow 
+  // maybe lazily growed heap, or lazily mmaped region
+  struct VMA* vma = findvma(fault_va); 
+  if (vma == 0) {  // lazily growed heap
+    return -1;
+  } 
+  uint64 mem = (uint64)kalloc();  // lazily mmaped region
+  if (mem == 0) {
+    return -1;
+  } 
+
+  uint npages = (fault_va - vma->addr)/PGSIZE;
+  uint64 start_offset = vma->offset + npages*PGSIZE; // file read start point
+  int perm = PTE_U;
+  if (vma->prot & PROT_READ) 
+    perm |= PTE_R;
+  if (vma->prot & PROT_WRITE)
+    perm |= PTE_W;
+  if (vma->prot & PROT_EXEC)
+    perm |= PTE_X;  
+  
+  if (mappages(p->pagetable, fault_va, PGSIZE, mem, perm) < 0) {  // 映射内存
+    kfree((void*)mem);
+    return -1;
+  }
+
+  struct inode* ip = vma->file->ip;
+  ilock(ip);
+  if (readi(ip, 0, mem, start_offset, PGSIZE) < 0) {
+    iunlock(ip);
+    uvmunmap(p->pagetable, fault_va, 1, 1);
+    return -1;
+  }  // 读一个page
+  iunlock(ip);
+  return 0;
 }

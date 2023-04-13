@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -134,6 +135,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  memset(&p->vma, 0, sizeof(p->vma));  // 初始化 vma 区域
   return p;
 }
 
@@ -287,6 +289,16 @@ fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  // *(np->vma) = *(p->vma);
+  struct VMA* np_vma;
+  struct VMA* p_vma;
+  for(np_vma = np->vma, p_vma = p->vma; np_vma < np->vma + NVMA; ++np_vma, ++p_vma) {
+    if (p_vma->addr) {
+      *np_vma = *p_vma;
+      filedup(p_vma->file);
+    }
+  }
+
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -352,6 +364,37 @@ exit(int status)
       p->ofile[fd] = 0;
     }
   }
+  struct VMA* vma;
+  for(vma = p->vma; vma != p->vma+NVMA; ++vma) {
+    if (vma->addr == 0)
+      continue;
+    uint64 unmap_addr = vma->addr;
+    uint64 unmap_length = vma->length;
+    uint64 unmap_end = vma->length + vma->addr;
+    if (vma->flags == MAP_SHARED) {
+      while (unmap_addr != unmap_end) {
+        uint64 next;
+        uint n;
+        if (unmap_addr%PGSIZE) {  // 当前地址 不是page 对齐
+          next = PGROUNDUP(unmap_addr);
+        } else {
+          next = unmap_addr+PGSIZE;
+        }
+        if (next > unmap_end)
+          next = unmap_end;
+        n = next - unmap_addr;
+        uint64 pa = walkaddr(p->pagetable, unmap_addr);
+        if (pa) {
+          filewrite(vma->file, unmap_addr, n);
+        }
+        unmap_addr += n;
+      }
+    }
+    unmap_addr = vma->addr;
+    uvmunmap(p->pagetable, unmap_addr, unmap_length/PGSIZE, 1);
+    fileclose(vma->file);   // 关闭文件
+    memset(vma, 0, sizeof(*vma));
+  }
 
   begin_op();
   iput(p->cwd);
@@ -395,7 +438,7 @@ exit(int status)
   release(&original_parent->lock);
 
   // Jump into the scheduler, never to return.
-  sched();
+  sched();   // 进程状态设置为zombie 不会再被调度
   panic("zombie exit");
 }
 
@@ -631,7 +674,7 @@ kill(int pid)
     acquire(&p->lock);
     if(p->pid == pid){
       p->killed = 1;
-      if(p->state == SLEEPING){
+      if(p->state == SLEEPING){ // 直接唤醒
         // Wake process from sleep().
         p->state = RUNNABLE;
       }

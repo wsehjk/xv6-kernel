@@ -72,6 +72,11 @@ makefile(const char *f)
     if (write(fd, buf, BSIZE) != BSIZE)
       err("write 0 makefile");
   }
+  memset(buf, 0, BSIZE);
+  for (i = n+n/2; i < 2*n; ++i) {
+    if (write(fd, buf, BSIZE) != BSIZE)
+      err("write 0 makefile");
+  }
   if (close(fd) == -1)
     err("close");
 }

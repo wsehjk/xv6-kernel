@@ -457,7 +457,7 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
   uint tot, m;
   struct buf *bp;
-
+  // printf("readi: off is %d, ip->size is %d\n", off, ip->size);
   if(off > ip->size || off + n < off)
     return 0;
   if(off + n > ip->size)
