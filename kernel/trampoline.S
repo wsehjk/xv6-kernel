@@ -96,6 +96,8 @@ userret:
         csrw satp, a1
         sfence.vma zero, zero
 
+        // 使用用户页表
+
         # put the saved user a0 in sscratch, so we
         # can swap it with our a0 (TRAPFRAME) in the last step.
         ld t0, 112(a0)

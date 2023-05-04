@@ -144,7 +144,7 @@ static uint64 (*syscalls[])(void) = {
 };
 
 void
-syscall(void)
+syscall(void)  // 调用相应的handler，并且在p->trapframe->a0中记录handler返回值，
 {
   int num;
   struct proc *p = myproc();

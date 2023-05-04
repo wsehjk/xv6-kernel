@@ -10,7 +10,8 @@ volatile static int started = 0;
 void
 main()
 {
-  if(cpuid() == 0){
+  if(cpuid() == 0){  // 所有CPU从main函数开始进入，但是只有id为0的cpu执行初始化工作
+    // printf("hart %d starting\n", cpuid());  0
     consoleinit();
     printfinit();
     printf("\n");
@@ -41,5 +42,5 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
 
-  scheduler();        
+  scheduler();     // 之后每个cpu都开始调度  
 }

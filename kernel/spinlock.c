@@ -30,7 +30,10 @@ acquire(struct spinlock *lk)
   //   s1 = &lk->locked
   //   amoswap.w.aq a5, a5, (s1)
   while(__sync_lock_test_and_set(&lk->locked, 1) != 0)
-    ;
+    ; // ____sync_lock_test_and_set(&lk->locked, 1) 
+      // 将lk->locked置为1，并且返回原来的值
+      // 如果原来的值为1, 那么置为1不影响状态，继续循环
+      // 如果原来的值为0, 置为1表示上锁，返回0跳出循环
 
   // Tell the C compiler and the processor to not move loads or stores
   // past this point, to ensure that the critical section's memory

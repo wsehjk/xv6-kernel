@@ -143,6 +143,9 @@ usertrapret(void)
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
   uint64 fn = TRAMPOLINE + (userret - trampoline);
+
+  // fn 转换为 函数指针 void (*fn)(uint64, uint64);
+
   ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
 }
 

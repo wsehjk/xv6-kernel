@@ -37,9 +37,10 @@ procinit(void)
       char *pa = kalloc();
       if(pa == 0)
         panic("kalloc");
+      // #define KSTACK(p) (TRAMPOLINE - ((p)+1)* 2*PGSIZE)
       uint64 va = KSTACK((int) (p - proc));
       kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W); // guard page 没有映射
-      p->kstack = va;
+      p->kstack = va; // 记录pcb的kernel stack
   }
   kvminithart();
 }
@@ -105,6 +106,7 @@ allocproc(void)
   return 0;
 
 found:
+  // 持有p->lock
   p->pid = allocpid();
 
   // Allocate a trapframe page.
@@ -285,8 +287,8 @@ fork(void)
   np->parent = p;
 
   // copy saved user registers.
-  *(np->trapframe) = *(p->trapframe);
-
+  *(np->trapframe) = *(p->trapframe);  // child和father有一样的 user registers 
+  // 相同的ra,sp,epc, s0,s1,,,  kernel_sp 在usertrapret中改变
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -493,7 +495,7 @@ scheduler(void)
     }
     if(nproc <= 2) {   // only init and sh exist
       intr_on();
-      asm volatile("wfi");
+      asm volatile("wfi"); // 等待中断
     }
   }
 }
