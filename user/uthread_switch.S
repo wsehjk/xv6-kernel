@@ -1,10 +1,13 @@
 	.text
 
 	/*
-         * save the old thread's registers,
-         * restore the new thread's registers.
-         */
-
+    * save the old thread's registers,
+    * restore the new thread's registers.
+    */
+    // thread_switch(old, new)
+    // old 指向放弃cpu的线程context
+    // new 指向被调度的线程context
+    // 将当前的寄存器信息保存在old->context
 	.globl thread_switch
 thread_switch:
 	/* YOUR CODE HERE */
