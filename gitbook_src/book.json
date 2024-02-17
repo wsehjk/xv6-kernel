@@ -19,45 +19,12 @@
         "-sharing",
         "back-to-top-button",
         "github",
-        "github-buttons",
-        "sharing-plus",
         "code",
         "-favicon"
     ],
     "pluginsConfig": {
         "github": {
-            "url": "https://github.com/wsehjk"
-        },
-        "github-buttons": {
-            "buttons": [{
-                "user": "wsehjk",
-                "repo": "xv6-kernel",
-                "size": "small"
-                }
-            ]
-        },
-        "sharing": {
-            "douban": false,
-            "facebook": false,
-            "google": false,
-            "hatenaBookmark": false,
-            "instapaper": false,
-            "line": false,
-            "linkedin": false,
-            "messenger": false,
-            "pocket": false,
-            "qq": false,
-            "qzone": false,
-            "stumbleupon": false,
-            "twitter": false,
-            "viber": false,
-            "vk": false,
-            "weibo": false,
-            "whatsapp": false,
-            "all": [
-                "google", "facebook", "weibo", "twitter",
-                "qq", "qzone", "linkedin", "pocket"
-            ]
+            "url": "https://github.com/wsehjk/xv6-kernel"
         },
         "anchor-navigation-ex": {
             "showLevel": false
