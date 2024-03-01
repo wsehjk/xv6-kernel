@@ -3,17 +3,20 @@
 #include "user/user.h"
 
 // concurrent primes seive
-void seive() {
+void seive() {  // 从标准输入中读取数字，向管道中写
     int a;
-    read(0, (char*)&a, 4);
+    if (read(0, (char*)&a, 4) == 0 || a ==0) {  // 注意结束
+        return ;
+    }
     printf("prime %d\n", a);
     int p[2];
     pipe(p);
     if (fork() == 0) { // child
-        close(0);
-        dup(p[0]);
+        close(0);      // 关闭 stdin
+        dup(p[0]);     // 重启 stdin
         close(p[0]);
-        close(p[1]);
+        close(p[1]); // 关闭
+
         seive();
     } else {
         close(p[0]);
@@ -24,16 +27,19 @@ void seive() {
             }
         }
         close(p[1]);
+        wait(0);
     }
 }
 
 int main() {
     int p[2];
+    pipe(p);
     if (fork() == 0) {
-        close(0);
-        dup(p[0]);
+        close(0);   // 关闭 stdin
+        dup(p[0]);  // 重启 stdin
         close(p[0]);
         close(p[1]);
+        
         seive(); 
     } else {
         close(p[0]);
@@ -41,5 +47,7 @@ int main() {
             write(p[1], (char*)&i, 4);
         }
         close(p[1]);
+        wait(0);
     } 
+    exit(0);
 }
