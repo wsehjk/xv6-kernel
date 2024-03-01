@@ -145,19 +145,19 @@ runcmd(struct cmd *cmd)
     panic("runcmd");
 
   case EXEC:
-    printf("exec cmd\n"); 
+   // printf("exec cmd\n"); 
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(1);
-    for(int i = 0; i < MAXARGS && ecmd->argv[i]; ++i) {
-      printf("%d %s\n", i, ecmd->argv[i]);
-    } 
+    // for(int i = 0; i < MAXARGS && ecmd->argv[i]; ++i) {
+    //   printf("%d %s\n", i, ecmd->argv[i]);
+    // } 
     exec(ecmd->argv[0], ecmd->argv);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
 
   case REDIR:
-    printf("redir cmd\n");
+    //printf("redir cmd\n");
     rcmd = (struct redircmd*)cmd;
     close(rcmd->fd);
     if(open(rcmd->file, rcmd->mode) < 0){
@@ -168,7 +168,7 @@ runcmd(struct cmd *cmd)
     break;
 
   case LIST:
-    printf("list cmd\n");
+    //printf("list cmd\n");
     lcmd = (struct listcmd*)cmd;
     if(fork1() == 0)
       runcmd(lcmd->left);
@@ -180,9 +180,9 @@ runcmd(struct cmd *cmd)
     pcmd = (struct pipecmd*)cmd;
     if(pipe(p) < 0)
       panic("pipe");
-    printf("pipe cmd\n");
+    //printf("pipe cmd\n");
     if(fork1() == 0){
-      printf("fork1\n");
+      // printf("fork1\n");
       close(1);
       dup(p[1]);
       close(p[0]);
@@ -190,7 +190,7 @@ runcmd(struct cmd *cmd)
       runcmd(pcmd->left);
     }
     if(fork1() == 0){
-      printf("fork1\n");
+      // printf("fork1\n");
       close(0);
       dup(p[0]);
       close(p[0]);
@@ -204,7 +204,7 @@ runcmd(struct cmd *cmd)
     break;
 
   case BACK:
-    printf("back cmd\n");
+    // printf("back cmd\n");
     bcmd = (struct backcmd*)cmd;
     if(fork1() == 0)
       runcmd(bcmd->cmd);
@@ -247,7 +247,7 @@ main(void)
         fprintf(2, "cannot cd %s\n", buf+3);
       continue;
     }
-    printf("get cmd buf is %s\n", buf);
+    // printf("get cmd buf is %s\n", buf);
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait(0); // 父进程等待孩子进程

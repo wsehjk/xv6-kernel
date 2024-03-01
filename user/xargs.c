@@ -5,6 +5,7 @@
 
 int main(int argc, char* argv[]) {
     char NEWLINE = '\n';
+    char SPACE = ' ';
     int MAXARGSIZE = 75;
     if (argc < 2) {
         printf("ERROR: xargs cmd arguments...\n");
@@ -20,10 +21,23 @@ int main(int argc, char* argv[]) {
     int k = 0;
     while(read(0, &c, 1) != 0) {
         if (c == NEWLINE) {
-            nextargv[j] = argbuf;
-            nextargv[j+1] = 0;
+            // 将argbuf 按照space 解析
             argbuf[k] = '\0';
+            int p = j;
+            nextargv[p++] = argbuf;
+            for(int i = 0; i < k; i++) {
+                if (argbuf[i] == SPACE) {
+                    argbuf[i] = '\0';
+                    nextargv[p++] = argbuf + (i + 1);
+                    if (p == MAXARG + 1) {
+                       fprintf(2, "ERROR: too many args");
+                       exit(-1); 
+                    }
+                }
+            }
             k = 0;
+            nextargv[p] = 0;
+
             if (fork() == 0) {  // child
                 exec(nextargv[0], nextargv);
             } else {
@@ -31,6 +45,10 @@ int main(int argc, char* argv[]) {
             }
         } else {
             argbuf[k++] = c;
+            if (k == MAXARGSIZE) {
+                fprintf(2, "ERROR: argument too long\n");
+                exit(-1);
+            }
         }
     }
     exit(0);
