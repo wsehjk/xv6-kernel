@@ -21,7 +21,10 @@
         "github",
         "sharing-plus",
         "code",
-        "-favicon"
+        "-favicon",
+        "-highlight", 
+        "prism", 
+        "prism-themes"
     ],
     "pluginsConfig": {
         "github": {
@@ -52,6 +55,14 @@
         },
         "anchor-navigation-ex": {
             "showLevel": false
+        },
+        "prism": {
+            "css": [
+              "prism-themes/themes/prism-dracula.css"
+            ],
+            "lang": {
+                "flow": "bash"
+            }
         }
     }
 }
