@@ -25,6 +25,10 @@ int main(int argc, char* argv[]) {
             argbuf[k] = '\0';
             int p = j;
             nextargv[p++] = argbuf;
+            if (p == MAXARG + 1) {
+                fprintf(2, "ERROR: too many args");
+                exit(-1); 
+            }
             for(int i = 0; i < k; i++) {
                 if (argbuf[i] == SPACE) {
                     argbuf[i] = '\0';

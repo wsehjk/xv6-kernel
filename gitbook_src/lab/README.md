@@ -55,4 +55,5 @@ int main() {
 }
 ```
 #### find
-#### xargs
+
+`find`要借助`open`获取文件描述符，使用`fstat`获得文件类型，如果是`T_FILE`比较文件名即可，如果是`T_DIR`则需要读取目录中的`direntry`获取文件名递归查询，
