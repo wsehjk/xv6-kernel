@@ -174,9 +174,9 @@ UPROGS += \
 endif
 
 UEXTRA=
-ifeq ($(LAB),util)
-	UEXTRA += user/xargstest.sh
-endif
+#ifeq ($(LAB),util)
+UEXTRA += user/xargstest.sh
+#endif
 
 fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
 	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
@@ -228,6 +228,8 @@ endif
 print-gdbport:
 	@echo $(GDBPORT)
 
+# make grade [LAB=XXX]
+# if LAB not spcified as argument, LAB in conf/lab.mk used
 grade:
 	@echo $(MAKE) clean
 	@$(MAKE) clean || \
