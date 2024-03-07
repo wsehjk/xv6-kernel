@@ -154,7 +154,7 @@ UPROGS=\
 	$U/_primes\
 	$U/_xargs\
 	$U/_find\
-
+	$U/_trace\
 
 
 ifeq ($(LAB),trap)

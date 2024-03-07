@@ -34,12 +34,12 @@ procinit(void)
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();
+      char *pa = kalloc();  // 分配一页物理内润
       if(pa == 0)
         panic("kalloc");
-      uint64 va = KSTACK((int) (p - proc));
-      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-      p->kstack = va;
+      uint64 va = KSTACK((int) (p - proc)); // 在kernel_pagetable中的虚拟地址
+      kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);  // 映射到物理内存
+      p->kstack = va; 
   }
   kvminithart();
 }
@@ -89,6 +89,11 @@ allocpid() {
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
+
+// allocproc 寻找一个状态为UNUSED的进程
+// 设置pid，并且分配物理内存作为页表，在页表中配置(trapframe, trapline)的映射
+// 设置context中的epc为`forkret`，sp为内核栈栈顶，即新创建进程被调度之后的执行环境
+//  
 static struct proc*
 allocproc(void)
 {
@@ -125,7 +130,7 @@ found:
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
-  p->context.sp = p->kstack + PGSIZE;
+  p->context.sp = p->kstack + PGSIZE; // p->kstack 指向栈低，这里是栈顶
 
   return p;
 }
@@ -213,7 +218,10 @@ userinit(void)
 {
   struct proc *p;
 
-  p = allocproc();
+  p = allocproc();  // 检查 0
+  if (p == 0) {
+    return ;
+  }
   initproc = p;
   
   // allocate one user page and copy init's instructions
