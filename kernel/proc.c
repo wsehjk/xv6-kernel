@@ -44,6 +44,18 @@ procinit(void)
   kvminithart();
 }
 
+int getprocnum() {
+  struct proc* p;
+  int tot = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock); 
+    if (p->state != UNUSED) {
+      tot ++;
+    }
+    release(&p->lock);
+  }
+  return tot;
+}
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.

@@ -155,6 +155,8 @@ UPROGS=\
 	$U/_xargs\
 	$U/_find\
 	$U/_trace\
+	$U/_sysinfotest\
+	$U/_sysinfo\
 
 
 ifeq ($(LAB),trap)

@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -102,4 +103,13 @@ uint64 sys_trace(void) {
   struct proc* p = mycpu()->proc;
   p->trace_num = trace_num;
   return 0; 
+}
+
+uint64 sys_sysinfo() {
+  uint64 addr= 0;
+  argaddr(0, &addr);
+  struct sysinfo info;
+  info.freemem = getfreemem();  // 获取空闲内存
+  info.nproc = getprocnum();    //  
+  return copyout(mycpu()->proc->pagetable, addr, (char*)&info, sizeof(info));
 }
