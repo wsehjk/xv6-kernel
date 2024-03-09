@@ -104,7 +104,7 @@ allocpid() {
 
 // allocproc 寻找一个状态为UNUSED的进程
 // 设置pid，并且分配物理内存作为页表，在页表中配置(trapframe, trapline)的映射
-// 设置context中的epc为`forkret`，sp为内核栈栈顶，即新创建进程被调度之后的执行环境
+// 设置context中的ra为`forkret`，sp为内核栈栈顶，即新创建进程被调度之后的执行环境
 //  
 static struct proc*
 allocproc(void)

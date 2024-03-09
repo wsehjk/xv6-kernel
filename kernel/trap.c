@@ -48,7 +48,7 @@ usertrap(void)
   struct proc *p = myproc();
   
   // save user program counter.
-  p->trapframe->epc = r_sepc();
+  p->trapframe->epc = r_sepc(); // 保存 user pc
   
   if(r_scause() == 8){
     // system call
@@ -125,7 +125,7 @@ usertrapret(void)
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
   uint64 fn = TRAMPOLINE + (userret - trampoline);
-  ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
+  ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);  // 函数指针
 }
 
 // interrupts and exceptions from kernel code go here via kernelvec,
@@ -159,6 +159,8 @@ kerneltrap()
   w_sstatus(sstatus);
 }
 
+// 时钟中断，系统ticks ++
+// and wake up process(threads) that sleeps on &ticks, proc->chan = &ticks
 void
 clockintr()
 {
