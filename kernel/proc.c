@@ -34,7 +34,7 @@ procinit(void)
       // Allocate a page for the process's kernel stack.
       // Map it high in memory, followed by an invalid
       // guard page.
-      char *pa = kalloc();  // 分配一页物理内润
+      char *pa = kalloc();  // 分配一页物理内存
       if(pa == 0)
         panic("kalloc");
       uint64 va = KSTACK((int) (p - proc)); // 在kernel_pagetable中的虚拟地址

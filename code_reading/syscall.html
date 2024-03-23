@@ -1,0 +1,472 @@
+
+<!DOCTYPE HTML>
+<html lang="en" >
+    <head>
+        <meta charset="UTF-8">
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <title>syscall · bolg</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="GitBook 3.2.3">
+        <meta name="author" content="wsehjk">
+        
+        
+    
+    <link rel="stylesheet" href="../gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-back-to-top-button/plugin.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-code/plugin.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-prism/prism-dracula.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="../gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="first_process.html" />
+    
+    
+    <link rel="prev" href="sleep.html" />
+    
+
+    </head>
+    <body>
+        
+<div class="book">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+    
+        
+        <li>
+            <a href="http://wsehjk.github.io" target="_blank" class="custom-link">home</a>
+        </li>
+    
+    
+
+    
+    <li class="divider"></li>
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="../">
+            
+                <a href="../">
+            
+                    
+                    Introduction
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    source code reading
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.2.1" data-path="makefile.html">
+            
+                <a href="makefile.html">
+            
+                    
+                    makefile
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.2" data-path="sleep.html">
+            
+                <a href="sleep.html">
+            
+                    
+                    sleep
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.2.3" data-path="syscall.html">
+            
+                <a href="syscall.html">
+            
+                    
+                    syscall
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.4" data-path="first_process.html">
+            
+                <a href="first_process.html">
+            
+                    
+                    boot and init process
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="../lectures/">
+            
+                <a href="../lectures/">
+            
+                    
+                    lecture
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="../lab/">
+            
+                <a href="../lab/">
+            
+                    
+                    lab
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.5" data-path="../paper/">
+            
+                <a href="../paper/">
+            
+                    
+                    paper
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://www.gitbook.com" target="blank" class="gitbook-link">
+            Published with GitBook
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href=".." >syscall</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h1 id="&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684;&#x8FC7;&#x7A0B;">&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684;&#x8FC7;&#x7A0B;</h1>
+<p><code>xv6</code>&#x63D0;&#x4F9B;&#x4E86;<code>open</code>&#xFF0C; <code>fork</code>&#xFF0C;<code>wait</code>&#x7C7B;&#x4F3C;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x51FD;&#x6570;&#x3002;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x51FD;&#x6570;&#x88AB;&#x5C01;&#x88C5;&#x7684;&#x50CF;&#x8FC7;&#x7A0B;&#x8C03;&#x7528;&#x51FD;&#x6570;&#x4E00;&#x6837;&#xFF0C;&#x4E5F;&#x9700;&#x8981;&#x7528;<code>call</code>&#x6307;&#x4EE4;&#xFF0C;&#x5E76;&#x4E14;&#x4F20;&#x9012;&#x53C2;&#x6570;&#xFF0C;&#x8BB0;&#x5F55;&#x8FD4;&#x56DE;&#x5730;&#x5740;&#x3002;&#x4E0D;&#x8FC7;&#xFF0C;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x51FD;&#x6570;&#x7684;&#x51FD;&#x6570;&#x4F53;&#x662F;&#x786C;&#x7F16;&#x7801;&#x7684;&#x6C47;&#x7F16;&#x6307;&#x4EE4;&#xFF0C;&#x5E76;&#x4E14;&#x53EA;&#x505A;&#x4E24;&#x4EF6;&#x4E8B;: 1. &#x5C06;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x53F7;&#x653E;&#x5165;&#x5BC4;&#x5B58;&#x5668;&#xFF0C;&#x4E4B;&#x540E;&#x5185;&#x6838;&#x501F;&#x6B64;&#x8C03;&#x7528;&#x5177;&#x4F53;&#x7684;<code>syscall handler</code>&#x3002;2. <code>ecall</code></p>
+<pre class="language-"><code class="lang-asm">#include &quot;kernel/syscall.h&quot;
+.global fork
+fork:
+ li a7, SYS_fork
+ ecall
+ ret
+</code></pre>
+<p><code>ecall</code>&#x4F1A;&#x6267;&#x884C;&#x4E00;&#x7CFB;&#x5217;&#x64CD;&#x4F5C;&#xFF0C;&#x4EE5;&#x4FBF;&#x8FDB;&#x5165;&#x5185;&#x6838;</p>
+<ol>
+<li>&#x5173;&#x95ED;&#x4E2D;&#x65AD;(disable interrupt)</li>
+<li>&#x5C06;<code>pc</code>&#x7684;&#x503C;&#x8D4B;&#x7ED9;<code>sepc</code>&#x5BC4;&#x5B58;&#x5668;</li>
+<li>cpu&#x53D8;&#x4E3A;<code>kernel mode</code></li>
+<li><code>scause</code> &#x8BB0;&#x5F55;&#x9677;&#x5165;&#x5185;&#x6838;&#x7684;&#x539F;&#x56E0;&#xFF0C;&#x8FD9;&#x91CC;&#x662F;syscall&#xFF0C;&#x8FD8;&#x6709;&#x53EF;&#x80FD;&#x662F;page fault, device interrupt</li>
+<li>&#x5C06;<code>stvec</code>&#x7684;&#x503C;&#x8D4B;&#x7ED9;<code>pc</code>
+&#x8FD9;&#x91CC;<code>stvec</code>&#x6307;&#x5411;<code>trampoline.s/uservec</code>&#x4EE3;&#x7801;&#xFF0C;&#x8FD9;&#x6BB5;&#x4EE3;&#x7801;&#x8D1F;&#x8D23;&#x4FDD;&#x5B58;&#x8FDB;&#x7A0B;&#x91CD;&#x8981;&#x7684;&#x5BC4;&#x5B58;&#x5668;&#xFF0C;&#x6BD4;&#x5982;<code>sp</code>&#xFF0C;<code>ra</code>&#xFF0C;<code>tp</code>&#xFF0C;&#x5230;&#x8FDB;&#x7A0B;&#x79C1;&#x6709;&#x7684;<code>trapframe</code>&#x5185;&#x5B58;&#x4E2D;&#x3002;<code>trapframe</code>&#x662F;&#x5728;&#x8FDB;&#x7A0B;&#x521B;&#x5EFA;&#x65F6;&#x9690;&#x5C04;&#x5230;&#x7533;&#x8BF7;&#x7684;&#x7269;&#x7406;&#x9875;&#x4E2D;&#xFF0C;&#x865A;&#x62DF;&#x5730;&#x5740;&#x5BF9;&#x4E8E;&#x6BCF;&#x4E2A;&#x8FDB;&#x7A0B;&#x662F;&#x4E00;&#x6837;&#x7684;&#x3002;&#x5E76;&#x4E14;&#x4ECE;<code>trapframe</code>&#x4E2D;&#x83B7;&#x5F97;&#x5728;&#x5185;&#x6838;&#x4E2D;&#x8FD0;&#x884C;&#x9700;&#x8981;&#x7684;<code>kernel stack pointer</code>, <code>kernel pagetable</code>, <code>hartid</code>&#xFF0C;&#x4EE5;&#x53CA;&#x9700;&#x8981;&#x8DF3;&#x8F6C;&#x7684;<code>usertrap</code>&#x51FD;&#x6570;&#x5730;&#x5740;&#x3002;</li>
+</ol>
+<p>&#x4E4B;&#x540E;&#x8DF3;&#x8F6C;&#x5230;<code>usertrap</code></p>
+<pre class="language-"><code class="lang-c"><span class="token comment">//</span>
+<span class="token comment">// handle an interrupt, exception, or system call from user space.</span>
+<span class="token comment">// called from trampoline.S</span>
+<span class="token comment">//</span>
+<span class="token keyword">void</span>
+<span class="token function">usertrap</span><span class="token punctuation">(</span><span class="token keyword">void</span><span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+  <span class="token keyword">int</span> which_dev <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+
+  <span class="token keyword">if</span><span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token function">r_sstatus</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">&amp;</span> SSTATUS_SPP<span class="token punctuation">)</span> <span class="token operator">!=</span> <span class="token number">0</span><span class="token punctuation">)</span>
+    <span class="token function">panic</span><span class="token punctuation">(</span><span class="token string">&quot;usertrap: not from user mode&quot;</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token comment">// send interrupts and exceptions to kerneltrap(),</span>
+  <span class="token comment">// since we&apos;re now in the kernel.</span>
+  <span class="token function">w_stvec</span><span class="token punctuation">(</span><span class="token punctuation">(</span>uint64<span class="token punctuation">)</span>kernelvec<span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token keyword">struct</span> <span class="token class-name">proc</span> <span class="token operator">*</span>p <span class="token operator">=</span> <span class="token function">myproc</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token comment">// save user program counter.</span>
+  p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>epc <span class="token operator">=</span> <span class="token function">r_sepc</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// &#x4FDD;&#x5B58; user pc</span>
+  <span class="token keyword">if</span><span class="token punctuation">(</span><span class="token function">r_scause</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">==</span> <span class="token number">8</span><span class="token punctuation">)</span><span class="token punctuation">{</span>
+    <span class="token comment">// system call</span>
+    <span class="token keyword">if</span><span class="token punctuation">(</span>p<span class="token operator">-&gt;</span>killed<span class="token punctuation">)</span>
+      <span class="token function">exit</span><span class="token punctuation">(</span><span class="token operator">-</span><span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token comment">// sepc points to the ecall instruction,</span>
+    <span class="token comment">// but we want to return to the next instruction.</span>
+    p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>epc <span class="token operator">+=</span> <span class="token number">4</span><span class="token punctuation">;</span>
+    <span class="token comment">// an interrupt will change sstatus &amp;c registers,</span>
+    <span class="token comment">// so don&apos;t enable until done with those registers.</span>
+    <span class="token function">intr_on</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token function">syscall</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token punctuation">}</span> 
+  <span class="token comment">// else </span>
+
+  <span class="token keyword">if</span><span class="token punctuation">(</span>p<span class="token operator">-&gt;</span>killed<span class="token punctuation">)</span>
+    <span class="token function">exit</span><span class="token punctuation">(</span><span class="token operator">-</span><span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// give up the CPU if this is a timer interrupt.</span>
+  <span class="token keyword">if</span><span class="token punctuation">(</span>which_dev <span class="token operator">==</span> <span class="token number">2</span><span class="token punctuation">)</span>
+    <span class="token function">yield</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token function">usertrapret</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p><code>usertrap</code>&#x4F1A;&#x5148;&#x8BBE;&#x7F6E;&#x5728;&#x5185;&#x6838;&#x4E2D;&#x4E2D;&#x65AD;&#x9700;&#x8981;&#x8DF3;&#x8F6C;&#x7684;&#x5730;&#x5740;(stvec)&#x3002;&#x4FDD;&#x5B58;&#x7528;&#x6237;&#x9677;&#x5165;&#x5185;&#x6838;&#x65F6;&#x7684;<code>pc</code>(read sepc), &#x4E4B;&#x540E;&#x901A;&#x8FC7;<code>scause</code>&#x5BC4;&#x5B58;&#x5668;&#x68C0;&#x67E5;&#x9677;&#x5165;&#x5185;&#x6838;&#x539F;&#x56E0;&#xFF0C;&#x8FD9;&#x91CC;&#x662F;<code>syscall</code>&#xFF0C;&#x4E4B;&#x540E;&#x5C31;&#x4F1A;&#x5F00;&#x4E2D;&#x65AD;&#xFF0C;&#x5E76;&#x4E14;&#x8C03;&#x7528;<code>syscall()</code>&#xFF0C;<code>syscall</code> &#x901A;&#x8FC7;<code>trapframe</code>&#x4E2D;<code>a7</code>&#x5BC4;&#x5B58;&#x5668;&#x6765;&#x51B3;&#x5B9A;<code>syscall handler</code>&#x3002;</p>
+<p>&#x4E4B;&#x540E;<code>usertrap</code>&#x8C03;&#x7528;<code>usertrapret</code>&#x8FD4;&#x56DE;&#x5230;&#x7528;&#x6237;&#x7A7A;&#x95F4;&#x3002;<code>usertrapret</code>&#x505A;&#x4E24;&#x4EF6;&#x4E8B; &#x8BB0;&#x5F55;&#x9677;&#x5165;&#x5185;&#x6838;&#x9700;&#x8981;&#x7528;&#x5230;&#x7684;&#x4FE1;&#x606F;&#xFF0C;&#x4E3A;&#x4E0B;&#x6B21;&#x9677;&#x5165;&#x5185;&#x6838;&#x505A;&#x51C6;&#x5907;&#xFF0C;&#x5E76;&#x4E14;&#x6062;&#x590D;&#x4FDD;&#x5B58;&#x5728;<code>trapframe</code>&#x4E2D;&#x7684;&#x5BC4;&#x5B58;&#x5668;&#x4FE1;&#x606F;&#x3002;&#x5177;&#x4F53;&#x6765;&#x770B;</p>
+<pre class="language-"><code class="lang-c"><span class="token keyword">void</span>
+<span class="token function">usertrapret</span><span class="token punctuation">(</span><span class="token keyword">void</span><span class="token punctuation">)</span>
+<span class="token punctuation">{</span>
+  <span class="token keyword">struct</span> <span class="token class-name">proc</span> <span class="token operator">*</span>p <span class="token operator">=</span> <span class="token function">myproc</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// we&apos;re about to switch the destination of traps from</span>
+  <span class="token comment">// kerneltrap() to usertrap(), so turn off interrupts until</span>
+  <span class="token comment">// we&apos;re back in user space, where usertrap() is correct.</span>
+  <span class="token function">intr_off</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// send syscalls, interrupts, and exceptions to trampoline.S</span>
+  <span class="token function">w_stvec</span><span class="token punctuation">(</span>TRAMPOLINE <span class="token operator">+</span> <span class="token punctuation">(</span>uservec <span class="token operator">-</span> trampoline<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// set up trapframe values that uservec will need when</span>
+  <span class="token comment">// the process next re-enters the kernel.</span>
+  p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>kernel_satp <span class="token operator">=</span> <span class="token function">r_satp</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>         <span class="token comment">// kernel page table</span>
+  p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>kernel_sp <span class="token operator">=</span> p<span class="token operator">-&gt;</span>kstack <span class="token operator">+</span> PGSIZE<span class="token punctuation">;</span> <span class="token comment">// process&apos;s kernel stack</span>
+  p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>kernel_trap <span class="token operator">=</span> <span class="token punctuation">(</span>uint64<span class="token punctuation">)</span>usertrap<span class="token punctuation">;</span>
+  p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>kernel_hartid <span class="token operator">=</span> <span class="token function">r_tp</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>         <span class="token comment">// hartid for cpuid()</span>
+
+  <span class="token comment">// set up the registers that trampoline.S&apos;s sret will use</span>
+  <span class="token comment">// to get to user space.</span>
+
+  <span class="token comment">// set S Previous Privilege mode to User.</span>
+  <span class="token keyword">unsigned</span> <span class="token keyword">long</span> x <span class="token operator">=</span> <span class="token function">r_sstatus</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  x <span class="token operator">&amp;=</span> <span class="token operator">~</span>SSTATUS_SPP<span class="token punctuation">;</span> <span class="token comment">// clear SPP to 0 for user mode</span>
+  x <span class="token operator">|=</span> SSTATUS_SPIE<span class="token punctuation">;</span> <span class="token comment">// enable interrupts in user mode</span>
+  <span class="token function">w_sstatus</span><span class="token punctuation">(</span>x<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// set S Exception Program Counter to the saved user pc.</span>
+  <span class="token function">w_sepc</span><span class="token punctuation">(</span>p<span class="token operator">-&gt;</span>trapframe<span class="token operator">-&gt;</span>epc<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// tell trampoline.S the user page table to switch to.</span>
+  uint64 satp <span class="token operator">=</span> <span class="token function">MAKE_SATP</span><span class="token punctuation">(</span>p<span class="token operator">-&gt;</span>pagetable<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// jump to trampoline.S at the top of memory, which </span>
+  <span class="token comment">// switches to the user page table, restores user registers,</span>
+  <span class="token comment">// and switches to user mode with sret.</span>
+  uint64 fn <span class="token operator">=</span> TRAMPOLINE <span class="token operator">+</span> <span class="token punctuation">(</span>userret <span class="token operator">-</span> trampoline<span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token keyword">void</span> <span class="token punctuation">(</span><span class="token operator">*</span><span class="token punctuation">)</span><span class="token punctuation">(</span>uint64<span class="token punctuation">,</span>uint64<span class="token punctuation">)</span><span class="token punctuation">)</span>fn<span class="token punctuation">)</span><span class="token punctuation">(</span>TRAPFRAME<span class="token punctuation">,</span> satp<span class="token punctuation">)</span><span class="token punctuation">;</span>  <span class="token comment">// &#x51FD;&#x6570;&#x6307;&#x9488;</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>&#x9996;&#x5148;&#x5173;&#x95ED;&#x4E2D;&#x65AD;&#xFF0C;&#x5C06;<code>ecall</code>&#x6307;&#x4EE4;&#x9700;&#x8981;&#x7528;&#x5230;&#x7684;&#x8DF3;&#x8F6C;&#x5730;&#x5740;&#x5199;&#x5165;<code>stvec</code>&#x5BC4;&#x5B58;&#x5668;&#xFF0C;&#x5C06;<code>kernel pagetable</code>&#xFF0C;<code>kernel stack pointer</code>&#xFF0C;<code>usertrap()</code>&#x5730;&#x5740;&#xFF0C;<code>cpu id</code>&#x8BB0;&#x5F55;&#x5728;<code>p-&gt;trapframe</code>&#x4E2D;&#xFF0C;&#x8FDB;&#x5165;&#x5185;&#x6838;&#x4E4B;&#x524D;&#x9700;&#x8981;&#x8BBE;&#x7F6E;&#x8FD9;&#x4E9B;&#x4FE1;&#x606F;&#xFF0C;&#x8FD9;&#x4E9B;&#x4FE1;&#x606F;&#x53EA;&#x5728;&#x5185;&#x6838;&#x4E2D;&#x53EF;&#x89C1;&#xFF0C;&#x6240;&#x6709;&#x5728;&#x9000;&#x51FA;&#x5185;&#x6838;&#x4E4B;&#x524D;&#x5C06;&#x4FE1;&#x606F;&#x4FDD;&#x5B58;&#x5728;<code>trapframe</code>&#x4E2D;&#x3002;&#x6B64;&#x5916;&#xFF0C;&#x8FD8;&#x628A;&#x66F4;&#x65B0;&#x8FC7;&#x7684;<code>p-&gt;trapframe-&gt;epc</code>&#x5199;&#x5165;<code>sepc</code>&#x4E2D;&#xFF0C;&#x8FD4;&#x56DE;&#x7528;&#x6237;&#x7A7A;&#x95F4;&#x65F6;&#xFF0C;&#x8D4B;&#x7ED9;<code>pc</code>&#x3002;&#x4E4B;&#x540E;&#x901A;&#x8FC7;&#x51FD;&#x6570;&#x6307;&#x9488;&#x8C03;&#x7528;<code>trampoline.s/userret</code>&#xFF0C;<code>userret</code>&#x548C;<code>uservec</code>&#x6B63;&#x597D;&#x76F8;&#x53CD;&#xFF0C;&#x8BBE;&#x7F6E;&#x7528;&#x6237;&#x9875;&#x8868;&#xFF0C; &#x6062;&#x590D;<code>p-&gt;trapframe</code>&#x4E2D;&#x7684;&#x5BC4;&#x5B58;&#x5668;&#x4FE1;&#x606F;&#xFF0C;<code>sret</code>&#x6307;&#x4EE4;&#x8FD4;&#x56DE;&#x7528;&#x6237;&#x7A7A;&#x95F4;&#x3002;<code>sret</code>&#x6307;&#x4EE4;&#x548C;<code>ecall</code>&#x6307;&#x4EE4;&#x6B63;&#x597D;&#x76F8;&#x53CD;&#x3002;</p>
+<ol>
+<li>&#x5F00;&#x542F;&#x4E2D;&#x65AD;(enable interrupt)</li>
+<li>&#x5C06;<code>sepc</code>&#x7684;&#x503C;&#x8D4B;&#x7ED9;<code>pc</code>&#x5BC4;&#x5B58;&#x5668;</li>
+<li>cpu&#x53D8;&#x4E3A;<code>user mode</code></li>
+</ol>
+<p><code>p-&gt;trapframe-&gt;epc</code>&#x8868;&#x793A;&#x8FD4;&#x56DE;&#x7528;&#x6237;&#x7A7A;&#x95F4;&#xFF0C;&#x7528;&#x6237;&#x5E94;&#x8BE5;&#x6267;&#x884C;&#x7684;&#x7B2C;&#x4E00;&#x6761;&#x6307;&#x4EE4;&#x5730;&#x5740;&#xFF0C;&#x4E00;&#x822C;&#x6765;&#x8BF4;&#x5C31;&#x662F;<code>ecall</code>&#x65F6;&#x4FDD;&#x5B58;&#x7684;<code>pc</code>&#x503C;&#xFF0C;&#x4F46;&#x662F;&#x6709;&#x51E0;&#x4E2A;&#x7279;&#x6B8A;</p>
+<ol>
+<li>&#x5982;&#x679C;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;<code>ecall</code>&#x662F;&#x4FDD;&#x5B58;&#x7684;<code>pc</code>&#x5C31;&#x662F;<code>ecall</code>&#x6267;&#x884C;&#x5730;&#x5740;&#xFF0C;&#x663E;&#x7136;&#x8FD4;&#x56DE;&#x5730;&#x5740;&#x5E94;&#x8BE5;&#x662F;<code>ecall</code>&#x4E0B;&#x4E00;&#x6761;&#x6307;&#x4EE4;&#xFF0C;&#x6240;&#x4EE5;<code>p-&gt;trapframe-&gt;epc += 4</code></li>
+<li><code>exec</code>&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x4E0D;&#x4F1A;&#x8FD4;&#x56DE;&#xFF0C;&#x4E4B;&#x524D;&#x4FDD;&#x5B58;&#x7684;<code>epc</code>&#x6CA1;&#x6709;&#x7528;&#x3002;&#x5C06;<code>epc</code>&#x8BBE;&#x7F6E;&#x6210;<code>elf</code>&#x6587;&#x4EF6;&#x4E2D;&#x7684;<code>elf.entry</code></li>
+</ol>
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="sleep.html" class="navigation navigation-prev " aria-label="Previous page: sleep">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="first_process.html" class="navigation navigation-next " aria-label="Next page: boot and init process">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"syscall","level":"1.2.3","depth":2,"next":{"title":"boot and init process","level":"1.2.4","depth":2,"path":"code_reading/first_process.md","ref":"code_reading/first_process.md","articles":[]},"previous":{"title":"sleep","level":"1.2.2","depth":2,"path":"code_reading/sleep.md","ref":"code_reading/sleep.md","articles":[]},"dir":"ltr"},"config":{"plugins":["-sharing","back-to-top-button","github","sharing-plus","code","-favicon","-highlight","prism","prism-themes"],"styles":{"website":"./styles/website.css"},"pluginsConfig":{"prism":{"css":["prism-themes/themes/prism-dracula.css"],"lang":{"flow":"bash"}},"github":{"url":"https://github.com/wsehjk"},"search":{},"sharing-plus":{"qq":false,"all":["facebook","google","twitter","instapaper","linkedin","pocket","stumbleupon"],"douban":false,"facebook":true,"weibo":false,"instapaper":false,"whatsapp":false,"hatenaBookmark":false,"twitter":true,"messenger":false,"line":false,"vk":false,"pocket":true,"google":false,"viber":false,"stumbleupon":false,"qzone":false,"linkedin":false},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"code":{"copyButtons":true},"fontsettings":{"theme":"white","family":"sans","size":2},"anchor-navigation-ex":{"showLevel":false},"back-to-top-button":{},"prism-themes":{},"sharing":{"qq":false,"all":["google","facebook","weibo","twitter","qq","qzone","linkedin","pocket"],"douban":false,"facebook":false,"weibo":false,"instapaper":false,"whatsapp":false,"hatenaBookmark":false,"twitter":false,"messenger":false,"line":false,"vk":false,"pocket":false,"google":false,"viber":false,"stumbleupon":false,"qzone":false,"linkedin":false},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"wsehjk","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56}},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"bolg","language":"en","links":{"sidebar":{"home":"http://wsehjk.github.io"}},"gitbook":"3.2.3","description":"all"},"file":{"path":"code_reading/syscall.md","mtime":"2024-03-09T06:35:25.477Z","type":"markdown"},"gitbook":{"version":"3.2.3","time":"2024-03-23T11:32:51.405Z"},"basePath":"..","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <script src="../gitbook/gitbook.js"></script>
+    <script src="../gitbook/theme.js"></script>
+    
+        
+        <script src="../gitbook/gitbook-plugin-back-to-top-button/plugin.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-github/plugin.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-sharing-plus/buttons.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-code/plugin.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+
